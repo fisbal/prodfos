@@ -79,3 +79,32 @@ jobs:
           git -c user.name=ci -c user.email=ci@local add log.txt
           git -c user.name=ci -c user.email=ci@local commit -qm "windows log ${{ github.sha }}"
           git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-windows
+
+  release:
+    name: Publish downloads
+    needs: [android, windows]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Package files
+        run: |
+          cp dist/ProDFOS-android-apk/app-release.apk ProDFOS-android.apk
+          (cd dist/ProDFOS-windows && zip -qr ../../ProDFOS-windows.zip .)
+          ls -la *.apk *.zip
+      - name: Update "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: ProDFOS latest build
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatic build of commit ${{ github.sha }}.
+            - **ProDFOS-android.apk**: install on Android
+            - **ProDFOS-windows.zip**: extract all, then run prodfos.exe
+          files: |
+            ProDFOS-android.apk
+            ProDFOS-windows.zip
