@@ -3,8 +3,10 @@ name: Build ProDFOS
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   android:
@@ -20,26 +22,57 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter pub get
-      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter build apk --release
+      - name: Flutter version
+        run: flutter --version | tee $RUNNER_TEMP/log.txt
+      - name: Get packages
+        run: flutter pub get 2>&1 | tee -a $RUNNER_TEMP/log.txt
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee -a $RUNNER_TEMP/log.txt
+      - name: Build APK
+        run: flutter build apk --release 2>&1 | tee -a $RUNNER_TEMP/log.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ProDFOS-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Publish build log
+        if: always()
+        shell: bash
+        run: |
+          touch $RUNNER_TEMP/log.txt
+          mkdir -p $RUNNER_TEMP/pub && cd $RUNNER_TEMP/pub
+          git init -q -b ci-logs-android
+          cp $RUNNER_TEMP/log.txt .
+          git -c user.name=ci -c user.email=ci@local add log.txt
+          git -c user.name=ci -c user.email=ci@local commit -qm "android log ${{ github.sha }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-android
 
   windows:
     name: Windows app
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - run: flutter pub get
-      - run: flutter build windows --release
+      - name: Get packages
+        run: flutter pub get 2>&1 | tee $RUNNER_TEMP/log.txt
+      - name: Build Windows
+        run: flutter build windows --release 2>&1 | tee -a $RUNNER_TEMP/log.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ProDFOS-windows
           path: build/windows/x64/runner/Release/
+      - name: Publish build log
+        if: always()
+        run: |
+          touch $RUNNER_TEMP/log.txt
+          mkdir -p $RUNNER_TEMP/pub && cd $RUNNER_TEMP/pub
+          git init -q -b ci-logs-windows
+          cp $RUNNER_TEMP/log.txt .
+          git -c user.name=ci -c user.email=ci@local add log.txt
+          git -c user.name=ci -c user.email=ci@local commit -qm "windows log ${{ github.sha }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-windows
