@@ -12,6 +12,9 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
