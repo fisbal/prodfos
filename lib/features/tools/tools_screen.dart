@@ -124,7 +124,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.voidBlack,
       body: CinematicBackdrop(
-        child: SafeArea(
+        child: ContentWidth(child: SafeArea(
           child: RefreshIndicator(
             color: AppTheme.brandGold,
             onRefresh: _loadOutputFiles,
@@ -230,7 +230,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }

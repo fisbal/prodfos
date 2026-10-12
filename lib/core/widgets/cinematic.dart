@@ -415,7 +415,11 @@ class GlassNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Padding(
+      child: Align(
+        heightFactor: 1,
+        child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
@@ -434,6 +438,8 @@ class GlassNavBar extends StatelessWidget {
               ]),
             ),
           ),
+        ),
+      ),
         ),
       ),
     );
@@ -483,4 +489,25 @@ extension CinematicEntrance on Widget {
   Widget riseIn(int index) => animate(delay: Duration(milliseconds: 60 * math.min(index, 8)))
       .fadeIn(duration: 450.ms)
       .slideY(begin: 0.08, end: 0, duration: 450.ms, curve: Curves.easeOutCubic);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CONTENT WIDTH — centered reading column on wide screens (desktop/tablet)
+// Phones are narrower than maxWidth, so nothing changes there.
+// ══════════════════════════════════════════════════════════════════════
+class ContentWidth extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  const ContentWidth({super.key, required this.child, this.maxWidth = 760});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
 }

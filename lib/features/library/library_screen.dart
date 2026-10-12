@@ -75,7 +75,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       backgroundColor: AppTheme.voidBlack,
       extendBody: true,
       body: CinematicBackdrop(
-        child: SafeArea(
+        child: ContentWidth(child: SafeArea(
           bottom: false,
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -104,7 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
-        ),
+        )),
       ),
       bottomNavigationBar: GlassNavBar(current: 0, items: [
         GlassNavItem(Icons.auto_stories_rounded, 'Library', () {}),
