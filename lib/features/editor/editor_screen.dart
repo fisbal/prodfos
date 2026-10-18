@@ -1,11 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/document_manager.dart';
 import '../../core/services/pdf_edit_service.dart';
 import 'page_canvas_screen.dart';
@@ -33,7 +32,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   static const _gold = AppTheme.brandGold;
 
-  String get _fileName => widget.filePath.split(RegExp(r'[/\\]')).last;
+  String get _fileName => fileNameOf(widget.filePath);
 
   @override
   void initState() {
@@ -43,7 +42,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Future<void> _load() async {
     try {
-      final b = await File(widget.filePath).readAsBytes();
+      final b = await AppFiles.readBytes(widget.filePath);
       setState(() => _bytes = b);
     } catch (e) {
       setState(() => _error = 'Could not open file:\n$e');
@@ -169,14 +168,17 @@ class _EditorScreenState extends State<EditorScreen> {
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name),
           const SizedBox(height: 8),
-          Text('Saved to: ProDFOS folder in Downloads.\nYour original file is untouched.',
+          Text(AppFiles.isWeb
+              ? 'Kept in this browser (Tools → Created files). Use Download to save it.\nYour original file is untouched.'
+              : 'Saved to the ProDFOS folder.\nYour original file is untouched.',
             style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keep editing')),
           TextButton.icon(
-            onPressed: () { Navigator.pop(ctx); Share.shareXFiles([XFile(path)]); },
-            icon: const Icon(Icons.share, size: 18), label: const Text('Share'),
+            onPressed: () { Navigator.pop(ctx); AppFiles.share(path); },
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
+            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
           ),
           FilledButton.icon(
             onPressed: () {

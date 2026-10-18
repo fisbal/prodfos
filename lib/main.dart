@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'core/platform/app_files.dart';
 import 'core/services/document_manager.dart';
 import 'core/services/preferences_service.dart';
 import 'core/services/pdf_service.dart';
@@ -12,6 +13,7 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('documents');
   await Hive.openBox('settings');
+  await AppFiles.init(); // browser file storage on web, no-op on Android/Windows
 
   final prefs = PreferencesService();
   await prefs.init();

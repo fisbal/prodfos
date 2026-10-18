@@ -1,21 +1,21 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 /// Scan enhancement engine — runs inside a background isolate via compute().
+/// Works on raw bytes so it runs the same on Android, Windows and Web.
 ///
 /// args:
-///   'input'  : source image path
-///   'output' : destination JPEG path
-///   'mode'   : 'natural' | 'bright' | 'bw'
-Future<void> enhanceImageFile(Map<String, String> args) async {
-  final bytes = await File(args['input']!).readAsBytes();
-  var image = img.decodeImage(bytes);
+///   'bytes' : source image bytes (Uint8List)
+///   'mode'  : 'natural' | 'bright' | 'bw'
+/// returns JPEG bytes (quality 96)
+Uint8List enhanceImageBytes(Map<String, Object> args) {
+  var image = img.decodeImage(args['bytes'] as Uint8List);
   if (image == null) throw Exception('Cannot decode image');
 
   // Respect camera rotation (EXIF) so pages are never sideways
   image = img.bakeOrientation(image);
 
-  switch (args['mode'] ?? 'natural') {
+  switch ((args['mode'] as String?) ?? 'natural') {
     case 'bw':
       // Crisp black & white — contracts, forms, text-only pages
       image = img.grayscale(image);
@@ -41,7 +41,7 @@ Future<void> enhanceImageFile(Map<String, String> args) async {
       break;
   }
 
-  await File(args['output']!).writeAsBytes(img.encodeJpg(image, quality: 96));
+  return img.encodeJpg(image, quality: 96);
 }
 
 // ══════════════════════════════════════════════════════════════════

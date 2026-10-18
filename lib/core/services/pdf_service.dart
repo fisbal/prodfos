@@ -1,8 +1,6 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import '../platform/app_files.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
 
 /// Result of a PDF operation — holds output path and metadata.
@@ -33,20 +31,9 @@ class PdfService extends ChangeNotifier {
   bool get isProcessing => _isProcessing;
   String? get statusMessage => _statusMessage;
 
-  /// Get the output directory (Downloads on Android, Documents on others)
-  Future<String> _getOutputDir() async {
-    // Android: save to Download folder
-    if (Platform.isAndroid) {
-      final dir = Directory('/storage/emulated/0/Download/ProDFOS');
-      if (!await dir.exists()) await dir.create(recursive: true);
-      return dir.path;
-    }
-    // Others: use documents directory
-    final dir = await getApplicationDocumentsDirectory();
-    final outputDir = Directory('${dir.path}/ProDFOS');
-    if (!await outputDir.exists()) await outputDir.create(recursive: true);
-    return outputDir.path;
-  }
+  /// Output folder: Download/ProDFOS (Android), Documents\\ProDFOS (Windows),
+  /// browser storage (Web).
+  Future<String> _getOutputDir() => AppFiles.outputDir();
 
   /// Generate a unique output filename
   String _uniqueName(String baseName, String extension) {
@@ -66,7 +53,7 @@ class PdfService extends ChangeNotifier {
 
       for (int i = 0; i < filePaths.length; i++) {
         _setStatus('Processing file ${i + 1} of ${filePaths.length}...');
-        final bytes = await File(filePaths[i]).readAsBytes();
+        final bytes = await AppFiles.readBytes(filePaths[i]);
         final sourceDoc = sync_pdf.PdfDocument(inputBytes: bytes);
 
         // Copy each page from source to merged document
@@ -87,9 +74,9 @@ class PdfService extends ChangeNotifier {
       // Save
       final outputDir = await _getOutputDir();
       final fileName = _uniqueName('merged', 'pdf');
-      final outputPath = '$outputDir/$fileName';
+      final outputPath = AppFiles.join(outputDir, fileName);
       final outputBytes = await mergedDoc.save();
-      await File(outputPath).writeAsBytes(outputBytes);
+      await AppFiles.writeBytes(outputPath, outputBytes);
       mergedDoc.dispose();
 
       final result = PdfResult(
@@ -113,7 +100,7 @@ class PdfService extends ChangeNotifier {
     _setStatus('Splitting PDF...');
 
     try {
-      final bytes = await File(filePath).readAsBytes();
+      final bytes = await AppFiles.readBytes(filePath);
       final sourceDoc = sync_pdf.PdfDocument(inputBytes: bytes);
       final newDoc = sync_pdf.PdfDocument();
 
@@ -131,9 +118,9 @@ class PdfService extends ChangeNotifier {
       final outputDir = await _getOutputDir();
       final baseName = p.basenameWithoutExtension(filePath);
       final fileName = _uniqueName('${baseName}_pages', 'pdf');
-      final outputPath = '$outputDir/$fileName';
+      final outputPath = AppFiles.join(outputDir, fileName);
       final outputBytes = await newDoc.save();
-      await File(outputPath).writeAsBytes(outputBytes);
+      await AppFiles.writeBytes(outputPath, outputBytes);
       sourceDoc.dispose();
       newDoc.dispose();
 
@@ -153,7 +140,7 @@ class PdfService extends ChangeNotifier {
 
   /// Get page count of a PDF file
   Future<int> getPageCount(String filePath) async {
-    final bytes = await File(filePath).readAsBytes();
+    final bytes = await AppFiles.readBytes(filePath);
     final doc = sync_pdf.PdfDocument(inputBytes: bytes);
     final count = doc.pages.count;
     doc.dispose();
@@ -167,7 +154,7 @@ class PdfService extends ChangeNotifier {
     _setStatus('Extracting text...');
 
     try {
-      final bytes = await File(filePath).readAsBytes();
+      final bytes = await AppFiles.readBytes(filePath);
       final doc = sync_pdf.PdfDocument(inputBytes: bytes);
       final buffer = StringBuffer();
 
@@ -188,9 +175,9 @@ class PdfService extends ChangeNotifier {
       final outputDir = await _getOutputDir();
       final baseName = p.basenameWithoutExtension(filePath);
       final fileName = _uniqueName('${baseName}_text', 'txt');
-      final outputPath = '$outputDir/$fileName';
+      final outputPath = AppFiles.join(outputDir, fileName);
       final content = buffer.toString();
-      await File(outputPath).writeAsString(content);
+      await AppFiles.writeString(outputPath, content);
 
       final result = PdfResult(
         outputPath: outputPath,
@@ -218,7 +205,7 @@ class PdfService extends ChangeNotifier {
       for (int i = 0; i < imagePaths.length; i++) {
         _setStatus('Adding image ${i + 1} of ${imagePaths.length}...');
         // Original bytes are embedded as-is — no re-compression
-        final imageBytes = await File(imagePaths[i]).readAsBytes();
+        final imageBytes = await AppFiles.readBytes(imagePaths[i]);
         final image = sync_pdf.PdfBitmap(imageBytes);
 
         final isLandscape = image.width > image.height;
@@ -254,9 +241,9 @@ class PdfService extends ChangeNotifier {
       // Save
       final outputDir = await _getOutputDir();
       final fileName = _uniqueName('scan', 'pdf');
-      final outputPath = '$outputDir/$fileName';
+      final outputPath = AppFiles.join(outputDir, fileName);
       final outputBytes = await doc.save();
-      await File(outputPath).writeAsBytes(outputBytes);
+      await AppFiles.writeBytes(outputPath, outputBytes);
       doc.dispose();
 
       final result = PdfResult(
@@ -307,9 +294,9 @@ class PdfService extends ChangeNotifier {
       // Save
       final outputDir = await _getOutputDir();
       final fileName = _uniqueName(title, 'pdf');
-      final outputPath = '$outputDir/$fileName';
+      final outputPath = AppFiles.join(outputDir, fileName);
       final outputBytes = await doc.save();
-      await File(outputPath).writeAsBytes(outputBytes);
+      await AppFiles.writeBytes(outputPath, outputBytes);
       doc.dispose();
 
       final result = PdfResult(

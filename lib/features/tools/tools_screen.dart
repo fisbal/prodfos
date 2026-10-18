@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
 
@@ -14,7 +12,7 @@ class ToolsScreen extends StatefulWidget {
 }
 
 class _ToolsScreenState extends State<ToolsScreen> {
-  List<FileSystemEntity> _outputFiles = [];
+  List<StoredFile> _outputFiles = [];
 
   // ══════════════════════════════════════════════════════════════════
   // LOGIC — unchanged
@@ -26,11 +24,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
   }
 
   Future<void> _loadOutputFiles() async {
-    final dir = Directory('/storage/emulated/0/Download/ProDFOS');
-    if (await dir.exists()) {
-      final files = dir.listSync()..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
-      if (mounted) setState(() => _outputFiles = files.where((f) => f is File).toList());
-    }
+    try {
+      final files = await AppFiles.listOutputs();
+      if (mounted) setState(() => _outputFiles = files);
+    } catch (_) {}
   }
 
   String _formatSize(int bytes) {
@@ -60,29 +57,28 @@ class _ToolsScreenState extends State<ToolsScreen> {
     return Colors.grey;
   }
 
-  void _openFile(FileSystemEntity file) {
-    final path = file.path;
-    final name = path.split('/').last;
-    if (name.endsWith('.pdf')) {
-      context.push('/viewer?path=${Uri.encodeComponent(path)}');
+  void _openFile(StoredFile file) {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      context.push('/viewer?path=${Uri.encodeComponent(file.path)}');
     } else {
-      OpenFilex.open(path);
+      AppFiles.open(file.path);
     }
   }
 
-  void _deleteFile(FileSystemEntity file) {
+  void _deleteFile(StoredFile file) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete file?'),
-        content: Text('Delete "${file.path.split('/').last}"? This cannot be undone.'),
+        content: Text('Delete "${file.name}"? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              file.deleteSync();
-              _loadOutputFiles();
+              await AppFiles.delete(file.path);
+              await _loadOutputFiles();
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('File deleted')),
               );
@@ -96,8 +92,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
   }
 
   Future<void> _pickAndEdit() async {
-    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-    final path = r?.files.first.path;
+    final r = await FilePicker.platform.pickFiles(
+        type: FileType.custom, allowedExtensions: ['pdf'], withData: AppFiles.pickWithData);
+    if (r == null || r.files.isEmpty) return;
+    final path = await AppFiles.fromPicked(r.files.first);
     if (path == null || !mounted) return;
     await context.push('/editor?path=${Uri.encodeComponent(path)}');
     _loadOutputFiles();
@@ -215,7 +213,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 if (_outputFiles.isEmpty)
                   SliverToBoxAdapter(child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
-                    child: Text('Files you create appear here — saved in Downloads/ProDFOS.',
+                    child: Text(AppFiles.isWeb
+                        ? 'Files you create appear here — kept in this browser. Use ⋮ → Download to save them to your computer.'
+                        : 'Files you create appear here — saved in ${_savedIn()}.',
                         style: AppTheme.body(13, color: AppTheme.creamFaint, height: 1.4)),
                   ))
                 else
@@ -263,9 +263,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
     );
   }
 
-  Widget _fileTile(FileSystemEntity file) {
-    final name = file.path.split('/').last;
-    final stat = file.statSync();
+  String _savedIn() =>
+      Theme.of(context).platform == TargetPlatform.android ? 'Downloads/ProDFOS' : 'Documents\\ProDFOS';
+
+  Widget _fileTile(StoredFile file) {
+    final name = file.name;
     final color = _colorForFile(name);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -287,7 +289,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: AppTheme.body(14, weight: FontWeight.w600)),
             const SizedBox(height: 3),
-            Text('${_formatSize(stat.size)} · ${_timeAgo(stat.modified)}',
+            Text('${_formatSize(file.size)} · ${_timeAgo(file.modified)}',
                 style: AppTheme.body(12, color: AppTheme.creamFaint)),
           ])),
           PopupMenuButton<String>(
@@ -295,14 +297,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
             onSelected: (a) {
               switch (a) {
                 case 'open': _openFile(file);
-                case 'share': Share.shareXFiles([XFile(file.path)]);
+                case 'share': AppFiles.share(file.path);
                 case 'delete': _deleteFile(file);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'open', child: Text('Open')),
-              PopupMenuItem(value: 'share', child: Text('Share')),
-              PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'open', child: Text('Open')),
+              PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? 'Download' : 'Share')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
             ],
           ),
         ]),

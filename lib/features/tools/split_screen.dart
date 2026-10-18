@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 
 class SplitScreen extends StatefulWidget {
@@ -23,13 +22,15 @@ class _SplitScreenState extends State<SplitScreen> {
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom, allowedExtensions: ['pdf'],
+      type: FileType.custom, allowedExtensions: ['pdf'], withData: AppFiles.pickWithData,
     );
-    if (result == null || result.files.first.path == null) return;
+    if (result == null || result.files.isEmpty) return;
+    final picked = await AppFiles.fromPicked(result.files.first);
+    if (picked == null || !mounted) return;
 
     setState(() => _isProcessing = true);
     try {
-      final path = result.files.first.path!;
+      final path = picked;
       final count = await context.read<PdfService>().getPageCount(path);
       setState(() {
         _filePath = path;
@@ -118,18 +119,18 @@ class _SplitScreenState extends State<SplitScreen> {
             Text('File: ${result.fileName}'),
             Text('Size: ${result.fileSizeFormatted}'),
             const SizedBox(height: 8),
-            Text('Saved to: ProDFOS folder in Downloads',
+            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
           TextButton.icon(
-            onPressed: () { Navigator.pop(ctx); Share.shareXFiles([XFile(result.outputPath)]); },
-            icon: const Icon(Icons.share, size: 18), label: const Text('Share'),
+            onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
           ),
           FilledButton.icon(
-            onPressed: () { Navigator.pop(ctx); OpenFilex.open(result.outputPath); },
+            onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
             icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
           ),
         ],

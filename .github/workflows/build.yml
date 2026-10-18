@@ -80,6 +80,44 @@ jobs:
           git -c user.name=ci -c user.email=ci@local commit -qm "windows log ${{ github.sha }}"
           git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-windows
 
+  web:
+    name: Web app (GitHub Pages)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get packages
+        run: flutter pub get 2>&1 | tee $RUNNER_TEMP/log.txt
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee -a $RUNNER_TEMP/log.txt
+      - name: Build web
+        run: flutter build web --release --base-href /prodfos/ 2>&1 | tee -a $RUNNER_TEMP/log.txt
+      - name: Deploy to gh-pages branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd build/web
+          touch .nojekyll
+          git init -q -b gh-pages
+          git -c user.name=ci -c user.email=ci@local add -A
+          git -c user.name=ci -c user.email=ci@local commit -qm "ProDFOS web ${{ github.sha }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:gh-pages
+      - name: Publish build log
+        if: always()
+        run: |
+          touch $RUNNER_TEMP/log.txt
+          mkdir -p $RUNNER_TEMP/pub && cd $RUNNER_TEMP/pub
+          git init -q -b ci-logs-web
+          cp $RUNNER_TEMP/log.txt .
+          git -c user.name=ci -c user.email=ci@local add log.txt
+          git -c user.name=ci -c user.email=ci@local commit -qm "web log ${{ github.sha }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-web
+
   release:
     name: Publish downloads
     needs: [android, windows]
@@ -105,6 +143,7 @@ jobs:
             Automatic build of commit ${{ github.sha }}.
             - **ProDFOS-android.apk**: install on Android
             - **ProDFOS-windows.zip**: extract all, then run prodfos.exe
+            - **Web app**: https://fisbal.github.io/prodfos/
           files: |
             ProDFOS-android.apk
             ProDFOS-windows.zip

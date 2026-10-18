@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 
 class ExtractTextScreen extends StatefulWidget {
@@ -22,11 +20,13 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom, allowedExtensions: ['pdf'],
+      type: FileType.custom, allowedExtensions: ['pdf'], withData: AppFiles.pickWithData,
     );
-    if (result == null || result.files.first.path == null) return;
+    if (result == null || result.files.isEmpty) return;
+    final picked = await AppFiles.fromPicked(result.files.first);
+    if (picked == null || !mounted) return;
     setState(() {
-      _filePath = result.files.first.path!;
+      _filePath = picked;
       _fileName = result.files.first.name;
       _result = null;
       _previewText = null;
@@ -38,7 +38,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
     setState(() => _isProcessing = true);
     try {
       final result = await context.read<PdfService>().extractText(_filePath!);
-      final content = await File(result.outputPath).readAsString();
+      final content = await AppFiles.readString(result.outputPath);
       setState(() {
         _isProcessing = false;
         _result = result;
@@ -126,12 +126,12 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                     const SizedBox(height: 12),
                     Row(children: [
                       OutlinedButton.icon(
-                        onPressed: () => Share.shareXFiles([XFile(_result!.outputPath)]),
-                        icon: const Icon(Icons.share, size: 16), label: const Text('Share'),
+                        onPressed: () => AppFiles.share(_result!.outputPath),
+                        icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 16), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
                       ),
                       const SizedBox(width: 8),
                       FilledButton.icon(
-                        onPressed: () => OpenFilex.open(_result!.outputPath),
+                        onPressed: () => AppFiles.open(_result!.outputPath),
                         icon: const Icon(Icons.open_in_new, size: 16), label: const Text('Open'),
                       ),
                     ]),

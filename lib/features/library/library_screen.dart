@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
 import '../../core/services/document_manager.dart';
-import '../viewer/viewer_screen.dart';
+import '../../core/platform/app_files.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -18,28 +18,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _openFilePicker() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom, allowedExtensions: ['pdf'],
-      allowMultiple: false, withData: true,
+      allowMultiple: false, withData: AppFiles.pickWithData,
     );
     if (result == null || result.files.isEmpty) return;
     final file = result.files.first;
-    String? filePath;
-    try { filePath = file.path; } catch (_) { filePath = null; }
-
-    if (filePath != null && filePath.isNotEmpty) {
-      final fileName = filePath.split(RegExp(r'[/\\]')).last;
-      if (!mounted) return;
-      context.read<DocumentManager>().addToRecent(filePath, fileName);
-      context.push('/viewer?path=${Uri.encodeComponent(filePath)}');
-    } else if (file.bytes != null && mounted) {
-      ViewerScreen.webBytes = file.bytes;
-      ViewerScreen.webFileName = file.name;
-      context.push('/viewer?path=web-memory');
-    }
+    final filePath = await AppFiles.fromPicked(file, persist: true);
+    if (filePath == null || filePath.isEmpty || !mounted) return;
+    context.read<DocumentManager>().addToRecent(filePath, file.name);
+    context.push('/viewer?path=${Uri.encodeComponent(filePath)}');
   }
 
   Future<void> _pickAndEdit() async {
-    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-    final path = r?.files.first.path;
+    final r = await FilePicker.platform.pickFiles(
+        type: FileType.custom, allowedExtensions: ['pdf'], withData: AppFiles.pickWithData);
+    if (r == null || r.files.isEmpty) return;
+    final path = await AppFiles.fromPicked(r.files.first);
     if (path == null || !mounted) return;
     context.push('/editor?path=${Uri.encodeComponent(path)}');
   }

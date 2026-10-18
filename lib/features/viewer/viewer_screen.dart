@@ -1,21 +1,24 @@
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
-import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
 import '../docmind/docmind_sheet.dart';
+import '../forms/xfa_view.dart';
 
+/// PDF viewer with two engines:
+///  • Standard engine (Syncfusion) — fast reading, search, night mode, DocMind.
+///  • Forms engine (pdf.js, the engine inside Firefox) — Adobe XFA and
+///    scripted government forms that other readers show as "Please wait…".
+/// XFA documents switch to the Forms engine automatically; any document can
+/// be toggled from the toolbar.
 class ViewerScreen extends StatefulWidget {
   final String filePath;
-  static Uint8List? webBytes;
-  static String? webFileName;
   const ViewerScreen({super.key, required this.filePath});
   @override
   State<ViewerScreen> createState() => _ViewerScreenState();
@@ -24,80 +27,111 @@ class ViewerScreen extends StatefulWidget {
 class _ViewerScreenState extends State<ViewerScreen> {
   final GlobalKey<SfPdfViewerState> _viewerKey = GlobalKey();
   final PdfViewerController _controller = PdfViewerController();
+  Uint8List? _bytes;
   int _currentPage = 1;
   int _totalPages = 0;
   bool _nightMode = false;
   bool _isLoading = true;
   String? _errorMessage;
   bool _isXfa = false;
+  bool _formsEngine = false;
   bool _isScanned = false;
   bool _dismissedBanner = false;
+  bool _restoredPage = false;
 
   @override
   void initState() {
     super.initState();
     _nightMode = context.read<PreferencesService>().nightMode;
-    // Pre-check for XFA before viewer loads
-    if (!kIsWeb && widget.filePath != 'web-memory') {
-      _preCheck();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final bytes = await AppFiles.readBytes(widget.filePath);
+      final xfa = _containsAscii(bytes, '/XFA') || _looksLikeXfaPlaceholder(bytes);
+      if (!mounted) return;
+      setState(() {
+        _bytes = bytes;
+        _isXfa = xfa;
+        _formsEngine = xfa;
+        if (xfa) _isLoading = false;
+      });
+      if (!xfa) _checkScanned(bytes);
+    } catch (e) {
+      if (mounted) setState(() { _isLoading = false; _errorMessage = 'Could not open this file:\n$e'; });
     }
   }
 
-  /// Quick pre-check: scan PDF bytes for /XFA marker
-  Future<void> _preCheck() async {
-    try {
-      final bytes = await File(widget.filePath).readAsBytes();
-      final content = String.fromCharCodes(bytes, 0, bytes.length.clamp(0, bytes.length));
-      if (content.contains('/XFA')) {
-        setState(() { _isXfa = true; _isLoading = false; });
-        return;
+  /// Fast byte search — no string conversion of the whole file.
+  static bool _containsAscii(Uint8List bytes, String needle) {
+    final n = needle.codeUnits;
+    final last = bytes.length - n.length;
+    outer:
+    for (int i = 0; i <= last; i++) {
+      if (bytes[i] != n[0]) continue;
+      for (int j = 1; j < n.length; j++) {
+        if (bytes[i + j] != n[j]) continue outer;
       }
-      // Also check text of page 1 for "Please wait" fallback
-      try {
-        final doc = sync_pdf.PdfDocument(inputBytes: bytes);
-        if (doc.pages.count > 0) {
-          final extractor = sync_pdf.PdfTextExtractor(doc);
-          final text = extractor.extractText(startPageIndex: 0, endPageIndex: 0);
-          if (text.contains('Please wait') && text.contains('Adobe Reader')) {
-            setState(() { _isXfa = true; _isLoading = false; });
-            doc.dispose();
-            return;
-          }
-          // Check if scanned (no text on first 3 pages)
-          if (text.trim().isEmpty && doc.pages.count <= 3) {
-            bool hasText = false;
-            for (int i = 1; i < doc.pages.count; i++) {
-              final t = extractor.extractText(startPageIndex: i, endPageIndex: i);
-              if (t.trim().isNotEmpty) { hasText = true; break; }
-            }
-            if (!hasText) setState(() => _isScanned = true);
-          }
-        }
-        doc.dispose();
-      } catch (_) {}
+      return true;
+    }
+    return false;
+  }
 
-      // Restore reading position
-      final lastPage = context.read<DocumentManager>().getLastPage(widget.filePath);
-      if (lastPage > 1) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _controller.jumpToPage(lastPage);
-        });
+  /// XFA hidden inside compressed object streams: page 1 only says "Please wait".
+  static bool _looksLikeXfaPlaceholder(Uint8List bytes) {
+    try {
+      final doc = sync_pdf.PdfDocument(inputBytes: bytes);
+      try {
+        if (doc.pages.count == 0) return false;
+        final text = sync_pdf.PdfTextExtractor(doc).extractText(startPageIndex: 0, endPageIndex: 0);
+        return text.contains('Please wait') && text.contains('Adobe');
+      } finally {
+        doc.dispose();
       }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _checkScanned(Uint8List bytes) {
+    try {
+      final doc = sync_pdf.PdfDocument(inputBytes: bytes);
+      final extractor = sync_pdf.PdfTextExtractor(doc);
+      final pages = doc.pages.count.clamp(0, 3);
+      bool hasText = false;
+      for (int i = 0; i < pages; i++) {
+        if (extractor.extractText(startPageIndex: i, endPageIndex: i).trim().isNotEmpty) {
+          hasText = true;
+          break;
+        }
+      }
+      doc.dispose();
+      if (!hasText && pages > 0 && mounted) setState(() => _isScanned = true);
     } catch (_) {}
   }
 
   @override
   void dispose() { _controller.dispose(); super.dispose(); }
 
-  String get _fileName {
-    if (widget.filePath == 'web-memory') return ViewerScreen.webFileName ?? 'Document';
-    return widget.filePath.split(RegExp(r'[/\\]')).last;
-  }
+  String get _fileName => fileNameOf(widget.filePath);
 
   void _saveProgress() {
-    if (!kIsWeb && widget.filePath != 'web-memory') {
+    if (!_formsEngine) {
       context.read<DocumentManager>().saveReadingProgress(widget.filePath, _currentPage);
     }
+  }
+
+  void _onFormSaved(String path) {
+    context.read<DocumentManager>().addToRecent(path, fileNameOf(path));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(AppFiles.isWeb
+          ? 'Filled form downloaded · also in Tools → Created files'
+          : 'Filled form saved · ${fileNameOf(path)}'),
+      action: AppFiles.isWeb ? null : SnackBarAction(
+        label: 'Share', textColor: AppTheme.brandGold,
+        onPressed: () => AppFiles.share(path)),
+    ));
   }
 
   @override
@@ -105,118 +139,94 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final prefs = context.watch<PreferencesService>();
 
     return Scaffold(
-      backgroundColor: _nightMode ? Colors.black : Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: _nightMode && !_formsEngine ? Colors.black : AppTheme.voidBlack,
       body: SafeArea(
         child: Column(
           children: [
             _buildToolbar(),
 
-            // Scanned document banner
-            if (_isScanned && !_dismissedBanner)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                color: Colors.blue.withValues(alpha: 0.12),
-                child: Row(children: [
-                  const Icon(Icons.document_scanner_rounded, size: 18, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Expanded(child: Text('Scanned document — text search and DocMind™ won\'t work.',
-                    style: TextStyle(fontSize: 12, color: Colors.white70))),
-                  IconButton(icon: const Icon(Icons.close, size: 16), padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () => setState(() => _dismissedBanner = true)),
-                ]),
-              ),
+            if (_formsEngine && _isXfa && !_dismissedBanner) _formsBanner(),
 
-            // Main content
-            Expanded(
-              child: _isXfa
-                  ? _buildXfaScreen()
-                  : Stack(children: [
-                      ColorFiltered(
-                        colorFilter: _nightMode
-                            ? const ColorFilter.matrix([-1,0,0,0,255, 0,-1,0,0,255, 0,0,-1,0,255, 0,0,0,1,0])
-                            : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
-                        child: _buildPdfViewer(prefs),
-                      ),
-                      if (_isLoading)
-                        const Center(child: CircularProgressIndicator(color: AppTheme.brandGold)),
-                      if (_errorMessage != null)
-                        Center(child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.error_outline, size: 48, color: Colors.red.withValues(alpha: 0.5)),
-                            const SizedBox(height: 16),
-                            Text(_errorMessage!, textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
-                            const SizedBox(height: 16),
-                            TextButton(onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Go Back')),
-                          ]),
-                        )),
-                    ]),
-            ),
+            if (!_formsEngine && _isScanned && !_dismissedBanner)
+              _banner(Icons.document_scanner_rounded, Colors.blue,
+                  'Scanned document — text search and DocMind™ won\'t work.'),
 
-            if (_totalPages > 0 && prefs.showPageCount && !_isXfa) _buildPageBar(),
+            Expanded(child: _buildBody(prefs)),
+
+            if (!_formsEngine && _totalPages > 0 && prefs.showPageCount) _buildPageBar(),
           ],
         ),
       ),
     );
   }
 
-  // ── XFA Screen ───────────────────────────────────────────
-  Widget _buildXfaScreen() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.warning_amber_rounded, size: 44, color: Colors.orange),
-            ),
-            const SizedBox(height: 24),
-            const Text('XFA Form Detected', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            Text(
-              'This PDF uses Adobe XFA technology (created with Adobe LiveCycle).\n\n'
-              'No PDF viewer can display XFA forms except Adobe Acrobat Reader — '
-              'not Chrome, Firefox, Foxit, or any mobile app.\n\n'
-              'To view or fill this form, use Adobe Acrobat Reader (free on Play Store).',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.55), height: 1.6, fontSize: 14),
-            ),
-            const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text('Go Back'),
-                ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: () {
-                    // Share the file so user can open it in Adobe
-                    Share.shareXFiles(
-                      [XFile(widget.filePath)],
-                      text: 'Open this XFA form in Adobe Acrobat Reader',
-                    );
-                  },
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('Open in Another App'),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
-                ),
-              ],
-            ),
-          ],
+  Widget _buildBody(PreferencesService prefs) {
+    if (_errorMessage != null) return _errorView();
+    final bytes = _bytes;
+    if (bytes == null) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.brandGold));
+    }
+    if (_formsEngine) {
+      return XfaView(
+        key: ValueKey('forms_${widget.filePath}'),
+        bytes: bytes, name: _fileName, onSaved: _onFormSaved);
+    }
+    return Stack(children: [
+      ColorFiltered(
+        colorFilter: _nightMode
+            ? const ColorFilter.matrix([-1,0,0,0,255, 0,-1,0,0,255, 0,0,-1,0,255, 0,0,0,1,0])
+            : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+        child: SfPdfViewer.memory(bytes,
+          key: _viewerKey, controller: _controller,
+          canShowScrollHead: prefs.showScrollHead,
+          enableTextSelection: true, pageSpacing: prefs.pageSpacing,
+          onDocumentLoaded: _onLoaded, onPageChanged: _onPageChanged, onDocumentLoadFailed: _onFailed,
         ),
       ),
+      if (_isLoading)
+        const Center(child: CircularProgressIndicator(color: AppTheme.brandGold)),
+    ]);
+  }
+
+  Widget _errorView() {
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.error_outline, size: 48, color: Colors.red.withValues(alpha: 0.5)),
+        const SizedBox(height: 16),
+        Text(_errorMessage!, textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+        const SizedBox(height: 20),
+        Wrap(spacing: 12, runSpacing: 8, alignment: WrapAlignment.center, children: [
+          OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Go Back')),
+          if (_bytes != null)
+            FilledButton.icon(
+              onPressed: () => setState(() { _errorMessage = null; _formsEngine = true; }),
+              icon: const Icon(Icons.dynamic_form_rounded, size: 18),
+              label: const Text('Try the Forms engine'),
+            ),
+        ]),
+      ]),
+    ));
+  }
+
+  Widget _formsBanner() => _banner(
+        Icons.verified_rounded, AppTheme.brandGold,
+        'Adobe XFA form — opened with the ProDFOS Forms engine (same as Firefox). '
+        'Fill it in, then tap Save.');
+
+  Widget _banner(IconData icon, Color color, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: color.withValues(alpha: 0.10),
+      child: Row(children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.white70))),
+        IconButton(icon: const Icon(Icons.close, size: 16), padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          onPressed: () => setState(() => _dismissedBanner = true)),
+      ]),
     );
   }
 
@@ -234,22 +244,34 @@ class _ViewerScreenState extends State<ViewerScreen> {
         Expanded(child: Text(_fileName, overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
         IconButton(
-          icon: Icon(_nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded, size: 20,
-            color: _nightMode ? AppTheme.brandGold : null),
-          onPressed: () => setState(() => _nightMode = !_nightMode),
+          icon: Icon(Icons.dynamic_form_rounded, size: 21,
+              color: _formsEngine ? AppTheme.brandGold : null),
+          tooltip: _formsEngine ? 'Switch to standard viewer' : 'Open with Forms engine (XFA)',
+          onPressed: _bytes == null ? null : () => setState(() {
+            _formsEngine = !_formsEngine;
+            _errorMessage = null;
+            _isLoading = !_formsEngine;
+            _totalPages = 0;
+          }),
         ),
+        if (!_formsEngine)
+          IconButton(
+            icon: Icon(_nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded, size: 20,
+              color: _nightMode ? AppTheme.brandGold : null),
+            onPressed: () => setState(() => _nightMode = !_nightMode),
+          ),
         IconButton(
           icon: const Icon(Icons.auto_awesome, size: 20, color: Color(0xFF6C5CE7)),
           tooltip: 'DocMind™ AI',
           onPressed: () => DocMindSheet.show(context, widget.filePath),
         ),
-        IconButton(icon: const Icon(Icons.edit_note_rounded, size: 24),
-          tooltip: 'Edit PDF',
-          onPressed: () {
-            if (kIsWeb || widget.filePath == 'web-memory' || _isXfa) return;
-            _saveProgress();
-            context.push('/editor?path=${Uri.encodeComponent(widget.filePath)}');
-          }),
+        if (!_formsEngine)
+          IconButton(icon: const Icon(Icons.edit_note_rounded, size: 24),
+            tooltip: 'Edit PDF',
+            onPressed: () {
+              _saveProgress();
+              context.push('/editor?path=${Uri.encodeComponent(widget.filePath)}');
+            }),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded, size: 20),
           onSelected: (action) {
@@ -257,46 +279,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'first': _controller.jumpToPage(1);
               case 'last': if (_totalPages > 0) _controller.jumpToPage(_totalPages);
               case 'bookmark': _viewerKey.currentState?.openBookmarkView();
-              case 'share':
-                if (!kIsWeb && widget.filePath != 'web-memory') {
-                  Share.shareXFiles([XFile(widget.filePath)]);
-                }
+              case 'share': AppFiles.share(widget.filePath);
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'first', child: Text('Go to First Page')),
-            PopupMenuItem(value: 'last', child: Text('Go to Last Page')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'bookmark', child: Text('Bookmarks')),
-            PopupMenuItem(value: 'share', child: Text('Share')),
+          itemBuilder: (_) => [
+            if (!_formsEngine) ...const [
+              PopupMenuItem(value: 'first', child: Text('Go to First Page')),
+              PopupMenuItem(value: 'last', child: Text('Go to Last Page')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'bookmark', child: Text('Bookmarks')),
+            ],
+            PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? 'Download' : 'Share')),
           ],
         ),
       ]),
-    );
-  }
-
-  // ── PDF Viewer ───────────────────────────────────────────
-  Widget _buildPdfViewer(PreferencesService prefs) {
-    if (kIsWeb || widget.filePath == 'web-memory') {
-      final bytes = ViewerScreen.webBytes;
-      if (bytes == null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() { _isLoading = false; _errorMessage = 'No PDF data available'; });
-        });
-        return const SizedBox.shrink();
-      }
-      return SfPdfViewer.memory(bytes,
-        key: _viewerKey, controller: _controller,
-        canShowScrollHead: prefs.showScrollHead,
-        enableTextSelection: true, pageSpacing: prefs.pageSpacing,
-        onDocumentLoaded: _onLoaded, onPageChanged: _onPageChanged, onDocumentLoadFailed: _onFailed,
-      );
-    }
-    return SfPdfViewer.file(File(widget.filePath),
-      key: _viewerKey, controller: _controller,
-      canShowScrollHead: prefs.showScrollHead,
-      enableTextSelection: true, pageSpacing: prefs.pageSpacing,
-      onDocumentLoaded: _onLoaded, onPageChanged: _onPageChanged, onDocumentLoadFailed: _onFailed,
     );
   }
 
@@ -313,8 +309,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
         Expanded(child: SliderTheme(
           data: SliderThemeData(activeTrackColor: AppTheme.brandGold, inactiveTrackColor: AppTheme.darkBorder,
             thumbColor: AppTheme.brandGold, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6), trackHeight: 3),
-          child: Slider(value: _currentPage.toDouble(), min: 1,
-            max: _totalPages.toDouble().clamp(1, double.infinity),
+          child: Slider(value: _currentPage.clamp(1, _totalPages < 1 ? 1 : _totalPages).toDouble(),
+            min: 1,
+            max: (_totalPages < 1 ? 1 : _totalPages).toDouble(),
             onChanged: (v) => _controller.jumpToPage(v.toInt())),
         )),
         IconButton(icon: const Icon(Icons.chevron_right, size: 20),
@@ -331,6 +328,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _onLoaded(PdfDocumentLoadedDetails d) {
     setState(() { _totalPages = d.document.pages.count; _currentPage = _controller.pageNumber; _isLoading = false; });
+    // Restore reading position once
+    if (!_restoredPage) {
+      _restoredPage = true;
+      final lastPage = context.read<DocumentManager>().getLastPage(widget.filePath);
+      if (lastPage > 1 && lastPage <= _totalPages) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _controller.jumpToPage(lastPage));
+      }
+    }
   }
   void _onPageChanged(PdfPageChangedDetails d) {
     setState(() => _currentPage = d.newPageNumber); _saveProgress();

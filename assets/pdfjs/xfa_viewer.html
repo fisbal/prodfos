@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!--
+  ProDFOS Forms Engine
+  Renders Adobe XFA / scripted government forms with Mozilla pdf.js
+  (the same engine Firefox uses). Runs in two modes:
+
+  1. Server mode (Android + Windows): ?file=/doc/<token>&api=/api/<token>
+     The app runs a private localhost server that serves this page, the PDF,
+     and receives saved forms through POST <api>/save.
+
+  2. Embed mode (Web): ?mode=embed
+     Lives in an <iframe>. The parent page sends {type:'open', data, name}
+     via postMessage and receives {type:'saved', data} back.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ProDFOS Forms</title>
+<link rel="stylesheet" href="pdf_viewer.css">
+<style>
+  :root {
+    --void: #07070A; --surface: #0E0E13; --card: #15151C; --border: #26262F;
+    --gold: #D4A843; --gold-light: #F2D78B; --cream: #F0EDE6; --muted: rgba(240,237,230,.6);
+  }
+  html, body { margin: 0; height: 100%; background: var(--void); color: var(--cream);
+    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent; overflow: hidden; }
+  #viewerContainer { position: absolute; inset: 0; overflow: auto; padding-bottom: 96px;
+    box-sizing: border-box; background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(212,168,67,.07), transparent 60%), var(--void); }
+  #viewerContainer::-webkit-scrollbar { width: 8px; height: 8px; }
+  #viewerContainer::-webkit-scrollbar-thumb { background: #2c2c36; border-radius: 8px; }
+  .pdfViewer { padding: 18px 0; }
+  .pdfViewer .page { margin: 0 auto 16px auto; border: none !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(212,168,67,.10); border-radius: 2px; }
+  /* XFA fields: make them clearly fillable */
+  .xfaLayer input, .xfaLayer textarea, .xfaLayer select { background: rgba(212,168,67,.08); }
+  .xfaLayer input:focus, .xfaLayer textarea:focus, .xfaLayer select:focus {
+    outline: 2px solid var(--gold); background: rgba(212,168,67,.14); }
+  .annotationLayer .textWidgetAnnotation :is(input, textarea):focus,
+  .annotationLayer .choiceWidgetAnnotation select:focus { outline: 2px solid var(--gold); }
+
+  #bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 999px;
+    background: rgba(21,21,28,.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(212,168,67,.22); box-shadow: 0 12px 40px rgba(0,0,0,.6); z-index: 10;
+    user-select: none; }
+  #bar button { all: unset; cursor: pointer; height: 38px; min-width: 38px; padding: 0 10px;
+    border-radius: 999px; display: flex; align-items: center; justify-content: center;
+    color: var(--cream); font-size: 14px; font-weight: 600; box-sizing: border-box; }
+  #bar button:hover { background: rgba(255,255,255,.06); }
+  #bar button:active { transform: scale(.96); }
+  #bar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  #pageInfo { min-width: 64px; text-align: center; font-size: 13px; color: var(--gold);
+    font-variant-numeric: tabular-nums; font-weight: 600; }
+  #save { background: linear-gradient(135deg, var(--gold-light), var(--gold)) !important;
+    color: #1a1406 !important; padding: 0 16px !important; gap: 6px; }
+  #save.dirty::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #1a1406;
+    margin-left: 2px; }
+  .sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+
+  #status { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; text-align: center; padding: 32px; z-index: 20;
+    background: var(--void); transition: opacity .35s ease; }
+  #status.hidden { opacity: 0; pointer-events: none; }
+  .spinner { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(212,168,67,.18);
+    border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #statusTitle { font-family: "Playfair Display", Georgia, serif; font-size: 22px; }
+  #statusText { color: var(--muted); font-size: 14px; max-width: 420px; line-height: 1.55; }
+  .kicker { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
+
+  #toast { position: fixed; left: 50%; bottom: 82px; transform: translate(-50%, 20px); opacity: 0;
+    background: var(--card); border: 1px solid rgba(212,168,67,.3); color: var(--cream);
+    padding: 10px 16px; border-radius: 12px; font-size: 13px; transition: all .3s ease; z-index: 30;
+    max-width: 86vw; text-align: center; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #pw { display: none; flex-direction: column; gap: 10px; width: min(320px, 80vw); }
+  #pw input { all: unset; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; color: var(--cream); font-size: 15px; }
+  #pw button { all: unset; cursor: pointer; text-align: center; padding: 12px; border-radius: 999px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: #1a1406; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="viewerContainer"><div id="viewer" class="pdfViewer"></div></div>
+
+<div id="bar" style="display:none">
+  <button id="zoomOut" title="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+  <button id="fit" title="Fit width"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
+  <button id="zoomIn" title="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <div class="sep"></div>
+  <div id="pageInfo">– / –</div>
+  <div class="sep"></div>
+  <button id="save" title="Save filled form">
+    <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+    <span>Save</span>
+  </button>
+</div>
+
+<div id="status">
+  <div class="spinner" id="spinner"></div>
+  <div class="kicker">ProDFOS Forms Engine</div>
+  <div id="statusTitle">Opening form…</div>
+  <div id="statusText">Rendering scripted &amp; XFA forms with the same engine Firefox uses.</div>
+  <form id="pw"><input id="pwInput" type="password" placeholder="Password" autocomplete="off"><button>Unlock</button></form>
+</div>
+<div id="toast"></div>
+
+<script src="pdf.min.js"></script>
+<script src="pdf_viewer.js"></script>
+<script>
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  var EMBED = params.get('mode') === 'embed';
+  var FILE = params.get('file');
+  var API = params.get('api');
+  var NAME = params.get('name') || 'form.pdf';
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+
+  var container = document.getElementById('viewerContainer');
+  var eventBus = new pdfjsViewer.EventBus();
+  var linkService = new pdfjsViewer.PDFLinkService({ eventBus: eventBus });
+  var scripting = null;
+  try {
+    scripting = new pdfjsViewer.PDFScriptingManager({ eventBus: eventBus, sandboxBundleSrc: 'pdf.sandbox.min.js' });
+  } catch (e) { scripting = null; }
+
+  var viewer = new pdfjsViewer.PDFViewer({
+    container: container, eventBus: eventBus, linkService: linkService,
+    scriptingManager: scripting || undefined,
+    annotationMode: pdfjsLib.AnnotationMode.ENABLE_FORMS,
+    textLayerMode: 1, removePageBorders: false,
+  });
+  linkService.setViewer(viewer);
+  if (scripting) scripting.setViewer(viewer);
+
+  var pdfDoc = null, dirty = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── Messaging to the host app ────────────────────────────
+  function notify(type, extra) {
+    var msg = Object.assign({ type: type }, extra || {});
+    if (EMBED) { try { parent.postMessage(Object.assign({ source: 'prodfos-forms' }, msg), '*'); } catch (e) {} return; }
+    if (API) {
+      fetch(API + '/event', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(msg) }).catch(function () {});
+    }
+  }
+
+  function toast(text) {
+    var t = $('toast'); t.textContent = text; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+
+  function showError(title, text) {
+    $('spinner').style.display = 'none';
+    $('statusTitle').textContent = title;
+    $('statusText').textContent = text;
+    $('status').classList.remove('hidden');
+    notify('error', { message: title + ': ' + text });
+  }
+
+  // ── Viewer events ────────────────────────────────────────
+  eventBus.on('pagesinit', function () {
+    viewer.currentScaleValue = window.innerWidth < 700 ? 'page-width' : 'auto';
+    $('status').classList.add('hidden');
+    $('bar').style.display = 'flex';
+    updatePage();
+  });
+  eventBus.on('pagechanging', updatePage);
+  function updatePage() {
+    if (!pdfDoc) return;
+    $('pageInfo').textContent = viewer.currentPageNumber + ' / ' + pdfDoc.numPages;
+  }
+  window.addEventListener('resize', function () {
+    var v = viewer.currentScaleValue;
+    if (v === 'page-width' || v === 'auto' || v === 'page-fit') viewer.currentScaleValue = v;
+  });
+
+  // ── Zoom ─────────────────────────────────────────────────
+  function setScale(s) { viewer.currentScale = Math.max(0.25, Math.min(5, s)); }
+  $('zoomIn').onclick = function () { setScale(viewer.currentScale * 1.2); };
+  $('zoomOut').onclick = function () { setScale(viewer.currentScale / 1.2); };
+  $('fit').onclick = function () { viewer.currentScaleValue = 'page-width'; };
+  container.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey) return; e.preventDefault();
+    setScale(viewer.currentScale * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+  }, { passive: false });
+
+  // Pinch-to-zoom (touch)
+  var pinch = null;
+  function dist(t) { var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY; return Math.hypot(dx, dy); }
+  container.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) pinch = { d: dist(e.touches), s: viewer.currentScale, r: 1 };
+  }, { passive: true });
+  container.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return; e.preventDefault();
+    pinch.r = dist(e.touches) / pinch.d;
+    $('viewer').style.transform = 'scale(' + pinch.r + ')';
+    $('viewer').style.transformOrigin = 'center top';
+  }, { passive: false });
+  container.addEventListener('touchend', function () {
+    if (!pinch) return; var target = pinch.s * pinch.r; pinch = null;
+    $('viewer').style.transform = ''; setScale(target);
+  });
+
+  // ── Save filled form ─────────────────────────────────────
+  $('save').onclick = function () {
+    if (!pdfDoc) return;
+    $('save').querySelector('span').textContent = 'Saving…';
+    pdfDoc.saveDocument().then(function (data) {
+      if (EMBED) {
+        parent.postMessage({ source: 'prodfos-forms', type: 'saved', name: NAME, data: data }, '*');
+        done(); return;
+      }
+      return fetch(API + '/save', { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: data })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (j) { done(j && j.name ? 'Saved · ' + j.name : null); });
+    }).catch(function (e) {
+      $('save').querySelector('span').textContent = 'Save';
+      toast('Could not save: ' + (e && e.message ? e.message : e));
+    });
+    function done(msg) {
+      dirty = false; $('save').classList.remove('dirty');
+      $('save').querySelector('span').textContent = 'Save';
+      toast(msg || 'Filled form saved');
+    }
+  };
+
+  // ── Open ─────────────────────────────────────────────────
+  function open(src, password) {
+    var opts = {
+      enableXfa: true,
+      cMapUrl: 'cmaps/', cMapPacked: true,
+      standardFontDataUrl: 'standard_fonts/',
+      isEvalSupported: false,
+    };
+    if (src.data) opts.data = src.data; else opts.url = src.url;
+    if (password) opts.password = password;
+    var task = pdfjsLib.getDocument(opts);
+    task.promise.then(function (doc) {
+      pdfDoc = doc;
+      viewer.setDocument(doc);
+      linkService.setDocument(doc, null);
+      if (scripting) { try { scripting.setDocument(doc); } catch (e) {} }
+      doc.annotationStorage.onSetModified = function () { dirty = true; $('save').classList.add('dirty'); };
+      notify('loaded', { pages: doc.numPages, xfa: !!doc.isPureXfa });
+    }).catch(function (err) {
+      if (err && err.name === 'PasswordException') {
+        $('spinner').style.display = 'none';
+        $('statusTitle').textContent = password ? 'Wrong password' : 'Protected document';
+        $('statusText').textContent = 'Enter the password to open this form.';
+        $('pw').style.display = 'flex';
+        $('pw').onsubmit = function (e) {
+          e.preventDefault(); $('pw').style.display = 'none'; $('spinner').style.display = '';
+          $('statusTitle').textContent = 'Opening form…';
+          open(src, $('pwInput').value);
+        };
+        return;
+      }
+      showError('Could not open this form', (err && err.message) || String(err));
+    });
+  }
+
+  if (EMBED) {
+    window.addEventListener('message', function (e) {
+      var m = e.data;
+      if (!m || m.type !== 'open' || !m.data) return;
+      if (m.name) NAME = m.name;
+      open({ data: m.data });
+    });
+    notify('ready');
+  } else if (FILE) {
+    open({ url: FILE });
+  } else {
+    showError('No document', 'Nothing to open.');
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 
 class ImagesToPdfScreen extends StatefulWidget {
@@ -21,15 +19,15 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       allowMultiple: true,
+      withData: AppFiles.pickWithData,
     );
     if (result == null) return;
-    setState(() {
-      for (final f in result.files) {
-        if (f.path != null) {
-          _images.add(_ImageEntry(path: f.path!, name: f.name, size: f.size));
-        }
-      }
-    });
+    final added = <_ImageEntry>[];
+    for (final f in result.files) {
+      final path = await AppFiles.fromPicked(f);
+      if (path != null) added.add(_ImageEntry(path: path, name: f.name, size: f.size));
+    }
+    if (mounted) setState(() => _images.addAll(added));
   }
 
   Future<void> _convert() async {
@@ -67,18 +65,18 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
             Text('File: ${result.fileName}'),
             Text('Size: ${result.fileSizeFormatted}'),
             const SizedBox(height: 8),
-            Text('Saved to: ProDFOS folder in Downloads',
+            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
           TextButton.icon(
-            onPressed: () { Navigator.pop(ctx); Share.shareXFiles([XFile(result.outputPath)]); },
-            icon: const Icon(Icons.share, size: 18), label: const Text('Share'),
+            onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
           ),
           FilledButton.icon(
-            onPressed: () { Navigator.pop(ctx); OpenFilex.open(result.outputPath); },
+            onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
             icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
           ),
         ],
@@ -138,8 +136,8 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
                         child: ListTile(
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(img.path),
+                            child: Image(
+                              image: AppFiles.image(img.path),
                               width: 48, height: 48, fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 width: 48, height: 48,

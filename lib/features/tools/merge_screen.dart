@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 
 class MergeScreen extends StatefulWidget {
@@ -21,15 +20,15 @@ class _MergeScreenState extends State<MergeScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       allowMultiple: true,
+      withData: AppFiles.pickWithData,
     );
     if (result == null) return;
-    setState(() {
-      for (final f in result.files) {
-        if (f.path != null) {
-          _files.add(_FileEntry(path: f.path!, name: f.name, size: f.size));
-        }
-      }
-    });
+    final added = <_FileEntry>[];
+    for (final f in result.files) {
+      final path = await AppFiles.fromPicked(f);
+      if (path != null) added.add(_FileEntry(path: path, name: f.name, size: f.size));
+    }
+    if (mounted) setState(() => _files.addAll(added));
   }
 
   Future<void> _merge() async {
@@ -79,7 +78,7 @@ class _MergeScreenState extends State<MergeScreen> {
             Text('Size: ${result.fileSizeFormatted}'),
             const SizedBox(height: 8),
             Text(
-              'Saved to: ProDFOS folder in Downloads',
+              AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
             ),
           ],
@@ -92,15 +91,15 @@ class _MergeScreenState extends State<MergeScreen> {
           TextButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              Share.shareXFiles([XFile(result.outputPath)]);
+              AppFiles.share(result.outputPath);
             },
-            icon: const Icon(Icons.share, size: 18),
-            label: const Text('Share'),
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
+            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
           ),
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              OpenFilex.open(result.outputPath);
+              AppFiles.open(result.outputPath);
             },
             icon: const Icon(Icons.open_in_new, size: 18),
             label: const Text('Open'),

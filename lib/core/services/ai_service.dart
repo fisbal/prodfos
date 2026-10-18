@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
-import 'dart:io';
+import '../platform/app_files.dart';
 
 /// DocMind™ AI Engine — sends PDF text to Anthropic/OpenAI for analysis.
 class AiService extends ChangeNotifier {
@@ -14,7 +14,7 @@ class AiService extends ChangeNotifier {
 
   /// Extract text from a PDF file for AI context.
   Future<String> extractTextFromPdf(String filePath) async {
-    final bytes = await File(filePath).readAsBytes();
+    final bytes = await AppFiles.readBytes(filePath);
     final doc = sync_pdf.PdfDocument(inputBytes: bytes);
     final buffer = StringBuffer();
     final extractor = sync_pdf.PdfTextExtractor(doc);
@@ -211,6 +211,8 @@ $documentText'''},
       headers: {
         'x-api-key': cleanKey,
         'anthropic-version': '2023-06-01',
+        // Required when ProDFOS runs in a browser (GitHub Pages link)
+        'anthropic-dangerous-direct-browser-access': 'true',
         'content-type': 'application/json',
       },
       body: jsonEncode({

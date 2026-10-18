@@ -34,6 +34,9 @@ dependencies:
   uuid: ^4.5.1
   intl: ^0.19.0
   url_launcher: ^6.3.0
+  webview_flutter: ^4.10.0
+  webview_windows: ^0.4.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -45,3 +48,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/fonts/
+    - assets/pdfjs/
+    - assets/pdfjs/cmaps/
+    - assets/pdfjs/standard_fonts/
+    - assets/pdfjs/images/

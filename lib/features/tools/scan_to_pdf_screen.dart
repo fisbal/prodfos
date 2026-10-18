@@ -1,13 +1,10 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/image_enhancer.dart';
 
@@ -27,6 +24,26 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
 
   /// ProDFOS owns color processing whenever a ProDFOS filter is active.
   bool get _prodfosHandlesColor => _filter != 'original';
+
+  /// Google's ML Kit scanner only exists on Android phones.
+  bool get _hasSmartScanner => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Camera capture: Android, and phone browsers (web). Not Windows desktop.
+  bool get _hasCamera => kIsWeb || defaultTargetPlatform == TargetPlatform.android;
+
+  /// Image picker results → ProDFOS paths (bytes are copied into the browser store on web).
+  Future<void> _addXFiles(List<XFile> files) async {
+    final paths = <String>[];
+    for (final x in files) {
+      paths.add(kIsWeb ? await AppFiles.fromBytes(await x.readAsBytes(), x.name) : x.path);
+    }
+    if (!mounted) return;
+    setState(() {
+      for (final p in paths) {
+        _pages.add(_ScanPage(path: p, name: 'Page ${_pages.length + 1}'));
+      }
+    });
+  }
 
   // ── Capture ──────────────────────────────────────────────
   Future<void> _scanWithMLKit() async {
@@ -69,19 +86,13 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       source: ImageSource.camera, requestFullMetadata: false,
     );
     if (photo == null) return;
-    setState(() {
-      _pages.add(_ScanPage(path: photo.path, name: 'Page ${_pages.length + 1}'));
-    });
+    await _addXFiles([photo]);
   }
 
   Future<void> _addFromGallery() async {
     final images = await ImagePicker().pickMultiImage(requestFullMetadata: false);
     if (images.isEmpty) return;
-    setState(() {
-      for (final im in images) {
-        _pages.add(_ScanPage(path: im.path, name: 'Page ${_pages.length + 1}'));
-      }
-    });
+    await _addXFiles(images);
   }
 
   // ── Build PDF ────────────────────────────────────────────
@@ -93,18 +104,15 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       var paths = _pages.map((p) => p.path).toList();
 
       if (_prodfosHandlesColor) {
-        final tmp = await getTemporaryDirectory();
-        final stamp = DateTime.now().millisecondsSinceEpoch;
         final enhanced = <String>[];
         for (int i = 0; i < paths.length; i++) {
           setState(() => _status = 'Enhancing ${i + 1}/${paths.length}...');
-          final out = '${tmp.path}/prodfos_enh_${stamp}_$i.jpg';
-          await compute(enhanceImageFile, {
-            'input': paths[i],
-            'output': out,
+          final src = await AppFiles.readBytes(paths[i]);
+          final out = await compute(enhanceImageBytes, <String, Object>{
+            'bytes': src,
             'mode': _filter,
           });
-          enhanced.add(out);
+          enhanced.add(await AppFiles.fromBytes(out, 'prodfos_enh_$i.jpg'));
         }
         paths = enhanced;
       }
@@ -139,7 +147,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
             Text('File: ${result.fileName}'),
             Text('Size: ${result.fileSizeFormatted}'),
             const SizedBox(height: 8),
-            Text('Saved to: ProDFOS folder in Downloads',
+            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
@@ -149,11 +157,12 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
             child: const Text('Done'),
           ),
           TextButton.icon(
-            onPressed: () { Navigator.pop(ctx); Share.shareXFiles([XFile(result.outputPath)]); },
-            icon: const Icon(Icons.share, size: 18), label: const Text('Share'),
+            onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
+            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
           ),
           FilledButton.icon(
-            onPressed: () { Navigator.pop(ctx); OpenFilex.open(result.outputPath); },
+            onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
             icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
           ),
         ],
@@ -228,13 +237,15 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
               ]),
               const SizedBox(height: 8),
               Text(
-                _prodfosHandlesColor
-                    ? 'Google auto-enhance off · ProDFOS handles color'
-                    : 'Google scanner tools enabled · no ProDFOS processing',
+                !_hasSmartScanner
+                    ? (_prodfosHandlesColor ? 'ProDFOS enhances every page' : 'Pages kept exactly as captured')
+                    : _prodfosHandlesColor
+                        ? 'Google auto-enhance off · ProDFOS handles color'
+                        : 'Google scanner tools enabled · no ProDFOS processing',
                 style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35)),
               ),
               const SizedBox(height: 12),
-              SizedBox(
+              if (_hasSmartScanner) SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _isProcessing ? null : _scanWithMLKit,
@@ -246,9 +257,9 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              if (_hasSmartScanner) const SizedBox(height: 10),
               Row(children: [
-                Expanded(
+                if (_hasCamera) Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _isProcessing ? null : _captureBasic,
                     icon: const Icon(Icons.camera_alt_rounded, size: 18),
@@ -259,12 +270,12 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                if (_hasCamera) const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _isProcessing ? null : _addFromGallery,
                     icon: const Icon(Icons.photo_library_rounded, size: 18),
-                    label: const Text('Gallery'),
+                    label: Text(_hasCamera ? 'Gallery' : 'Add images'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.4)),
@@ -350,7 +361,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           clipBehavior: Clip.antiAlias,
           child: Row(children: [
-            Image.file(File(page.path), width: 80, height: 100, fit: BoxFit.cover,
+            Image(image: AppFiles.image(page.path), width: 80, height: 100, fit: BoxFit.cover,
               cacheWidth: 240,
               errorBuilder: (_, __, ___) => Container(width: 80, height: 100, color: AppTheme.darkBg,
                 child: const Icon(Icons.broken_image, size: 24))),
