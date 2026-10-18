@@ -1,9 +1,27 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// ── Release signing ─────────────────────────────────────────────
+// One permanent key (android/keystore/prodfos-release.p12) so every new
+// APK installs as an UPDATE over the previous one — no uninstall needed.
+// The keystore file is useless without its password, which is NEVER
+// committed: CI reads it from the ANDROID_KEYSTORE_PASSWORD secret, local
+// builds from android/key.properties (git-ignored: storePassword=...).
+val releaseKeystore = rootProject.file("keystore/prodfos-release.p12")
+val localKeyProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val releaseKeystorePassword: String? =
+    System.getenv("ANDROID_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+        ?: localKeyProps.getProperty("storePassword")?.takeIf { it.isNotBlank() }
+val hasReleaseKey = releaseKeystore.exists() && releaseKeystorePassword != null
 
 android {
     namespace = "com.martinb.prodfos"
@@ -30,11 +48,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseKey) {
+                storeFile = releaseKeystore
+                storeType = "PKCS12"
+                storePassword = releaseKeystorePassword
+                keyAlias = "prodfos"
+                keyPassword = releaseKeystorePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Permanent ProDFOS key when the password is available, otherwise
+            // fall back to the debug key so builds never fail.
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 }
