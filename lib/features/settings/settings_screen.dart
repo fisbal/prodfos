@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
+import '../../core/widgets/scene3d.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/preferences_service.dart';
 import '../../core/services/document_manager.dart';
@@ -28,336 +29,228 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final prefs = context.watch<PreferencesService>();
+    final recentCount = context.watch<DocumentManager>().recentDocs.length;
 
     return Scaffold(
       backgroundColor: AppTheme.voidBlack,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: CinematicBackdrop(child: ListView(
+      body: CinematicBackdrop(child: ContentWidth(child: SafeArea(child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 56),
         children: [
-          const SizedBox(height: 8),
+          Row(children: [
+            Key3D(icon: Icons.arrow_back_rounded, tooltip: 'Back', onTap: () => Navigator.of(context).pop()),
+          ]),
+          const SizedBox(height: 22),
+          const Padding(padding: EdgeInsets.only(left: 6), child: Kicker('Make it yours'))
+              .cinematicIn(delayMs: 60, blur: false),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+              Text('Your ', style: AppTheme.display(40)),
+              GoldText('Settings', style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
+            ]),
+          ).cinematicIn(delayMs: 140),
+          const SizedBox(height: 28),
 
           // ── READING ──────────────────────────────────────
-          _SectionHeader(title: 'READING'),
-          _SettingsTile(
-            icon: Icons.dark_mode_rounded,
-            title: 'Night Mode',
-            subtitle: 'Invert colors for comfortable reading in the dark',
-            trailing: Switch(
-              value: prefs.nightMode,
-              onChanged: (v) => prefs.nightMode = v,
-              activeColor: AppTheme.brandGold,
+          _group('Reading', [
+            _SettingsTile(
+              icon: Icons.dark_mode_rounded,
+              title: 'Night Mode',
+              subtitle: 'Invert colors for comfortable reading in the dark',
+              trailing: Switch(value: prefs.nightMode, onChanged: (v) => prefs.nightMode = v,
+                  activeColor: AppTheme.brandGold),
             ),
-          ),
-          _SettingsTile(
-            icon: Icons.bookmark_rounded,
-            title: 'Remember Position',
-            subtitle: 'Resume reading where you left off',
-            trailing: Switch(
-              value: prefs.rememberPosition,
-              onChanged: (v) => prefs.rememberPosition = v,
-              activeColor: AppTheme.brandGold,
+            _SettingsTile(
+              icon: Icons.bookmark_rounded,
+              title: 'Remember Position',
+              subtitle: 'Resume reading where you left off',
+              trailing: Switch(value: prefs.rememberPosition, onChanged: (v) => prefs.rememberPosition = v,
+                  activeColor: AppTheme.brandGold),
             ),
-          ),
-          _SettingsTile(
-            icon: Icons.zoom_in_rounded,
-            title: 'Default Zoom',
-            subtitle: '${(prefs.defaultZoom * 100).toInt()}%',
-            onTap: () => _showZoomPicker(context, prefs),
-          ),
-          _SettingsTile(
-            icon: Icons.swap_vert_rounded,
-            title: 'Scroll Direction',
-            subtitle: prefs.scrollDirection == 'vertical' ? 'Vertical' : 'Horizontal',
-            onTap: () {
-              prefs.scrollDirection =
-                  prefs.scrollDirection == 'vertical' ? 'horizontal' : 'vertical';
-            },
-          ),
-          _SettingsTile(
-            icon: Icons.view_agenda_rounded,
-            title: 'Page Layout',
-            subtitle: _pageLayoutLabel(prefs.pageLayout),
-            onTap: () => _showPageLayoutPicker(context, prefs),
-          ),
-
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
+            _SettingsTile(
+              icon: Icons.zoom_in_rounded,
+              title: 'Default Zoom',
+              subtitle: '${(prefs.defaultZoom * 100).toInt()}%',
+              onTap: () => _showZoomPicker(context, prefs),
+            ),
+            _SettingsTile(
+              icon: Icons.swap_vert_rounded,
+              title: 'Scroll Direction',
+              subtitle: prefs.scrollDirection == 'vertical' ? 'Vertical' : 'Horizontal',
+              onTap: () {
+                prefs.scrollDirection = prefs.scrollDirection == 'vertical' ? 'horizontal' : 'vertical';
+              },
+            ),
+            _SettingsTile(
+              icon: Icons.view_agenda_rounded,
+              title: 'Page Layout',
+              subtitle: _pageLayoutLabel(prefs.pageLayout),
+              onTap: () => _showPageLayoutPicker(context, prefs),
+            ),
+          ]),
 
           // ── DISPLAY ──────────────────────────────────────
-          _SectionHeader(title: 'DISPLAY'),
-          _SettingsTile(
-            icon: Icons.format_size_rounded,
-            title: 'Page Spacing',
-            subtitle: '${prefs.pageSpacing.toInt()} px between pages',
-            onTap: () => _showSpacingPicker(context, prefs),
-          ),
-          _SettingsTile(
-            icon: Icons.numbers_rounded,
-            title: 'Show Page Count',
-            subtitle: 'Display page indicator at bottom',
-            trailing: Switch(
-              value: prefs.showPageCount,
-              onChanged: (v) => prefs.showPageCount = v,
-              activeColor: AppTheme.brandGold,
+          _group('Display', [
+            _SettingsTile(
+              icon: Icons.format_size_rounded,
+              title: 'Page Spacing',
+              subtitle: '${prefs.pageSpacing.toInt()} px between pages',
+              onTap: () => _showSpacingPicker(context, prefs),
             ),
-          ),
-          _SettingsTile(
-            icon: Icons.swipe_rounded,
-            title: 'Show Scroll Head',
-            subtitle: 'Draggable scroll indicator on the side',
-            trailing: Switch(
-              value: prefs.showScrollHead,
-              onChanged: (v) => prefs.showScrollHead = v,
-              activeColor: AppTheme.brandGold,
+            _SettingsTile(
+              icon: Icons.numbers_rounded,
+              title: 'Show Page Count',
+              subtitle: 'Display page indicator at bottom',
+              trailing: Switch(value: prefs.showPageCount, onChanged: (v) => prefs.showPageCount = v,
+                  activeColor: AppTheme.brandGold),
             ),
-          ),
-
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-
-          // ── DATA ─────────────────────────────────────────
-          _SectionHeader(title: 'DATA'),
-          _SettingsTile(
-            icon: Icons.history_rounded,
-            title: 'Recent Documents',
-            subtitle: '${context.watch<DocumentManager>().recentDocs.length} documents',
-          ),
-          _SettingsTile(
-            icon: Icons.delete_outline_rounded,
-            iconColor: Colors.red,
-            title: 'Clear Recent Documents',
-            subtitle: 'Remove all reading history',
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Clear History?'),
-                  content: const Text('This will remove all recent documents from the list. Your PDF files will not be deleted.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        context.read<DocumentManager>().clearAll();
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Recent documents cleared')),
-                        );
-                      },
-                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text('Clear'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
+            _SettingsTile(
+              icon: Icons.swipe_rounded,
+              title: 'Show Scroll Head',
+              subtitle: 'Draggable scroll indicator on the side',
+              trailing: Switch(value: prefs.showScrollHead, onChanged: (v) => prefs.showScrollHead = v,
+                  activeColor: AppTheme.brandGold),
+            ),
+          ]),
 
           // ── DOCMIND™ AI ──────────────────────────────────
-          _SectionHeader(title: 'DOCMIND™ AI'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [
-                  const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                  AppTheme.darkCard,
-                ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(children: [
-                    Icon(Icons.auto_awesome, color: Color(0xFF6C5CE7), size: 20),
-                    SizedBox(width: 8),
-                    Text('API Key', style: TextStyle(color: Color(0xFFA29BFE), fontWeight: FontWeight.w600)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text('Your key stays on-device and is never shared.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _apiKeyController,
-                    obscureText: _obscureKey,
-                    style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                    decoration: InputDecoration(
-                      hintText: 'sk-ant-... or sk-...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontFamily: 'monospace', fontSize: 13),
-                      prefixIcon: Icon(Icons.key_rounded, color: const Color(0xFF6C5CE7).withValues(alpha: 0.5), size: 18),
-                      suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(
-                          icon: Icon(_obscureKey ? Icons.visibility_off : Icons.visibility, size: 18),
-                          onPressed: () => setState(() => _obscureKey = !_obscureKey),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.content_paste_rounded, size: 18),
-                          onPressed: () async {
-                            final data = await Clipboard.getData('text/plain');
-                            if (data?.text != null) { _apiKeyController.text = data!.text!; prefs.aiApiKey = data.text!.trim(); }
-                          },
-                        ),
-                      ]),
-                    ),
-                    onChanged: (v) => prefs.aiApiKey = v.trim(),
+          _group('DocMind™ AI', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const AiOrb(size: 64),
+                  const SizedBox(width: 8),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Your AI key', style: AppTheme.display(19)),
+                    const SizedBox(height: 3),
+                    Text('Stays on this device and is never shared.',
+                        style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
+                  ])),
+                ]),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _apiKeyController,
+                  obscureText: _obscureKey,
+                  style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    hintText: 'sk-ant-... or sk-...',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontFamily: 'monospace', fontSize: 13),
+                    prefixIcon: Icon(Icons.key_rounded, color: AppTheme.brandGold.withValues(alpha: 0.6), size: 18),
+                    suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                        icon: Icon(_obscureKey ? Icons.visibility_off : Icons.visibility, size: 18),
+                        onPressed: () => setState(() => _obscureKey = !_obscureKey),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.content_paste_rounded, size: 18),
+                        onPressed: () async {
+                          final data = await Clipboard.getData('text/plain');
+                          if (data?.text != null) { _apiKeyController.text = data!.text!; prefs.aiApiKey = data.text!.trim(); }
+                        },
+                      ),
+                    ]),
                   ),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Text('Provider: ', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
-                    const SizedBox(width: 8),
-                    ChoiceChip(label: const Text('Anthropic'), selected: prefs.aiProvider == 'anthropic',
-                      selectedColor: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                      onSelected: (_) => prefs.aiProvider = 'anthropic'),
-                    const SizedBox(width: 8),
-                    ChoiceChip(label: const Text('OpenAI'), selected: prefs.aiProvider == 'openai',
-                      selectedColor: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                      onSelected: (_) => prefs.aiProvider = 'openai'),
-                  ]),
-                ],
-              ),
+                  onChanged: (v) => prefs.aiApiKey = v.trim(),
+                ),
+                const SizedBox(height: 14),
+                Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  Text('Provider', style: AppTheme.body(13, color: AppTheme.creamMuted)),
+                  Chip3D(label: 'Anthropic', selected: prefs.aiProvider == 'anthropic',
+                      onTap: () => prefs.aiProvider = 'anthropic'),
+                  Chip3D(label: 'OpenAI', selected: prefs.aiProvider == 'openai',
+                      onTap: () => prefs.aiProvider = 'openai'),
+                ]),
+              ]),
             ),
-          ),
+          ], accent: const Color(0xFF8E7CF0)),
 
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-
-          // ── COMING SOON ──────────────────────────────────
-          _SectionHeader(title: 'COMING SOON'),
-          _SettingsTile(
-            icon: Icons.draw_rounded,
-            title: 'Annotations',
-            subtitle: 'Highlight, underline, notes, and stamps',
-            trailing: _ComingSoonBadge(),
-          ),
-
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
+          // ── DATA ─────────────────────────────────────────
+          _group('Data', [
+            _SettingsTile(
+              icon: Icons.history_rounded,
+              title: 'Recent Documents',
+              subtitle: '$recentCount documents',
+            ),
+            _SettingsTile(
+              icon: Icons.delete_outline_rounded,
+              iconColor: Colors.redAccent,
+              title: 'Clear Recent Documents',
+              subtitle: 'Remove all reading history',
+              onTap: () => _confirmClear(context),
+            ),
+          ]),
 
           // ── ABOUT ────────────────────────────────────────
-          _SectionHeader(title: 'ABOUT'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.brandGold.withValues(alpha: 0.06),
-                    AppTheme.darkCard,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.brandGold.withValues(alpha: 0.15),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.brandGold, AppTheme.brandGoldLight],
-                          ),
-                          borderRadius: BorderRadius.circular(13),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.brandGold.withValues(alpha: 0.25),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text('P', style: TextStyle(
-                            color: Colors.black, fontSize: 22, fontWeight: FontWeight.w900,
-                          )),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text.rich(TextSpan(children: [
-                              TextSpan(text: 'ProDF', style: TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 20,
-                              )),
-                              TextSpan(text: 'OS', style: TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 20,
-                                color: AppTheme.brandGold,
-                              )),
-                            ])),
-                            Text(
-                              'v${AppConstants.appVersion} • by Martin B',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    AppConstants.appTagline,
-                    style: TextStyle(
-                      color: AppTheme.brandGold.withValues(alpha: 0.5),
-                      fontStyle: FontStyle.italic,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
+          _group('About', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: Row(children: [
+                const BrandMark(size: 52),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Wordmark(size: 22),
+                  const SizedBox(height: 4),
+                  Text('v${AppConstants.appVersion} · by Martin B',
+                      style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
+                  const SizedBox(height: 4),
+                  Text(AppConstants.appTagline,
+                      style: AppTheme.display(14, italic: true, color: AppTheme.brandGold.withValues(alpha: 0.8))),
+                ])),
+              ]),
             ),
-          ),
-
-          _SettingsTile(
-            icon: Icons.star_outline_rounded,
-            title: 'Rate ProDFOS',
-            subtitle: 'Love it? Leave a review',
-            onTap: () {},
-          ),
-          _SettingsTile(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () {},
-          ),
-          _SettingsTile(
-            icon: Icons.description_outlined,
-            title: 'Terms of Service',
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 48),
+            _SettingsTile(icon: Icons.star_outline_rounded, title: 'Rate ProDFOS',
+                subtitle: 'Love it? Leave a review', onTap: () {}),
+            _SettingsTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy', onTap: () {}),
+            _SettingsTile(icon: Icons.description_outlined, title: 'Terms of Service', onTap: () {}),
+          ]),
         ],
-      )),
+      )))),
+    );
+  }
+
+  Widget _group(String title, List<Widget> children, {Color accent = AppTheme.brandGold}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.only(left: 6, bottom: 10), child: Kicker(title)),
+        Slab3D(
+          accent: accent,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(children: [
+            for (int i = 0; i < children.length; i++) ...[
+              if (i > 0) Divider(height: 1, indent: 70, color: Colors.white.withValues(alpha: 0.05)),
+              children[i],
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  void _confirmClear(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear History?'),
+        content: const Text('This will remove all recent documents from the list. Your PDF files will not be deleted.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              context.read<DocumentManager>().clearAll();
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Recent documents cleared')),
+              );
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -465,24 +358,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 // ── Reusable Widgets ───────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Text(title, style: TextStyle(
-        color: AppTheme.brandGold.withValues(alpha: 0.7),
-        fontWeight: FontWeight.w700,
-        fontSize: 11,
-        letterSpacing: 1.5,
-      )),
-    );
-  }
-}
-
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final Color? iconColor;
@@ -503,9 +378,9 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: Icon(icon, size: 22, color: iconColor ?? AppTheme.brandGold.withValues(alpha: 0.7)),
-      title: Text(title, style: const TextStyle(fontSize: 15)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      leading: IconChip3D(icon: icon, color: iconColor ?? AppTheme.brandGold),
+      title: Text(title, style: AppTheme.body(15, weight: FontWeight.w600)),
       subtitle: subtitle != null
           ? Text(subtitle!, style: TextStyle(
               color: Colors.white.withValues(alpha: 0.35), fontSize: 13))
@@ -514,25 +389,6 @@ class _SettingsTile extends StatelessWidget {
           ? Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.2))
           : null),
       onTap: onTap,
-    );
-  }
-}
-
-class _ComingSoonBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.brandGold.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.brandGold.withValues(alpha: 0.2)),
-      ),
-      child: Text('Soon', style: TextStyle(
-        color: AppTheme.brandGold.withValues(alpha: 0.6),
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-      )),
     );
   }
 }

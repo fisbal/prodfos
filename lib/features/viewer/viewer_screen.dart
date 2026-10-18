@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/scene3d.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
@@ -27,6 +28,7 @@ class ViewerScreen extends StatefulWidget {
 class _ViewerScreenState extends State<ViewerScreen> {
   final GlobalKey<SfPdfViewerState> _viewerKey = GlobalKey();
   final PdfViewerController _controller = PdfViewerController();
+  final GlobalKey<PopupMenuButtonState<String>> _menuKey = GlobalKey();
   Uint8List? _bytes;
   int _currentPage = 1;
   int _totalPages = 0;
@@ -232,48 +234,55 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // ── Toolbar ──────────────────────────────────────────────
   Widget _buildToolbar() {
+    void toggleEngine() => setState(() {
+          _formsEngine = !_formsEngine;
+          _errorMessage = null;
+          _isLoading = !_formsEngine;
+          _totalPages = 0;
+        });
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: AppTheme.darkSurface,
-        border: Border(bottom: BorderSide(color: AppTheme.darkBorder.withValues(alpha: 0.5))),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF17171E), Color(0xFF0C0C11)],
+        ),
+        border: Border(bottom: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.18))),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Row(children: [
-        IconButton(icon: const Icon(Icons.arrow_back_rounded, size: 22),
-          onPressed: () { _saveProgress(); Navigator.of(context).pop(); }),
+        Key3D(icon: Icons.arrow_back_rounded, size: 38, tooltip: 'Back',
+          onTap: () { _saveProgress(); Navigator.of(context).pop(); }),
+        const SizedBox(width: 12),
         Expanded(child: Text(_fileName, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-        IconButton(
-          icon: Icon(Icons.dynamic_form_rounded, size: 21,
-              color: _formsEngine ? AppTheme.brandGold : null),
+          style: AppTheme.body(14, weight: FontWeight.w600))),
+        const SizedBox(width: 6),
+        Key3D(icon: Icons.dynamic_form_rounded, size: 36, active: _formsEngine,
           tooltip: _formsEngine ? 'Switch to standard viewer' : 'Open with Forms engine (XFA)',
-          onPressed: _bytes == null ? null : () => setState(() {
-            _formsEngine = !_formsEngine;
-            _errorMessage = null;
-            _isLoading = !_formsEngine;
-            _totalPages = 0;
-          }),
+          onTap: _bytes == null ? null : toggleEngine),
+        if (!_formsEngine) ...[
+          const SizedBox(width: 6),
+          Key3D(icon: _nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded, size: 36,
+            active: _nightMode, tooltip: 'Night mode',
+            onTap: () => setState(() => _nightMode = !_nightMode)),
+        ],
+        const SizedBox(width: 4),
+        Tooltip(
+          message: 'DocMind™ AI',
+          child: AiOrb(size: 44, onTap: () => DocMindSheet.show(context, widget.filePath)),
         ),
-        if (!_formsEngine)
-          IconButton(
-            icon: Icon(_nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded, size: 20,
-              color: _nightMode ? AppTheme.brandGold : null),
-            onPressed: () => setState(() => _nightMode = !_nightMode),
-          ),
-        IconButton(
-          icon: const Icon(Icons.auto_awesome, size: 20, color: Color(0xFF6C5CE7)),
-          tooltip: 'DocMind™ AI',
-          onPressed: () => DocMindSheet.show(context, widget.filePath),
-        ),
-        if (!_formsEngine)
-          IconButton(icon: const Icon(Icons.edit_note_rounded, size: 24),
-            tooltip: 'Edit PDF',
-            onPressed: () {
+        if (!_formsEngine) ...[
+          const SizedBox(width: 4),
+          Key3D(icon: Icons.edit_note_rounded, size: 36, gold: true, tooltip: 'Edit PDF',
+            onTap: () {
               _saveProgress();
               context.push('/editor?path=${Uri.encodeComponent(widget.filePath)}');
             }),
+        ],
+        const SizedBox(width: 6),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded, size: 20),
+          key: _menuKey,
+          tooltip: 'More',
           onSelected: (action) {
             switch (action) {
               case 'first': _controller.jumpToPage(1);
@@ -291,6 +300,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ],
             PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? 'Download' : 'Share')),
           ],
+          child: Key3D(icon: Icons.more_vert_rounded, size: 36,
+              onTap: () => _menuKey.currentState?.showButtonMenu()),
         ),
       ]),
     );

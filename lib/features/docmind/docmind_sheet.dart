@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/cinematic.dart';
+import '../../core/widgets/scene3d.dart';
 import '../../core/services/ai_service.dart';
 import '../../core/services/preferences_service.dart';
 
@@ -13,9 +15,9 @@ class DocMindSheet extends StatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.darkSurface,
+      backgroundColor: const Color(0xFF0B0B10),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.85,
@@ -158,32 +160,29 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 12),
 
-        // Header
+        // Header — the DocMind orb pulses faster while it thinks
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.auto_awesome, color: Color(0xFF6C5CE7), size: 20),
-              ),
-              const SizedBox(width: 12),
-              const Text('DocMind™', style: TextStyle(
-                fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFFA29BFE),
-              )),
-              const Spacer(),
-              if (aiService.isProcessing)
-                Row(children: [
-                  const SizedBox(width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C5CE7))),
-                  const SizedBox(width: 8),
-                  Text(aiService.statusMessage ?? 'Working...',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+              AiOrb(size: 58, thinking: aiService.isProcessing || _isLoadingText),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                  Text('Doc', style: AppTheme.display(24)),
+                  GoldText('Mind', style: AppTheme.display(24, italic: true, weight: FontWeight.w600)),
+                  Text('™', style: AppTheme.body(12, color: AppTheme.creamFaint)),
                 ]),
+                const SizedBox(height: 2),
+                Text(
+                  aiService.isProcessing
+                      ? (aiService.statusMessage ?? 'Thinking…')
+                      : _isLoadingText ? 'Reading your document…' : 'Ask, summarize, analyze',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: AppTheme.body(12.5, color: aiService.isProcessing
+                      ? const Color(0xFFA29BFE) : AppTheme.creamFaint),
+                ),
+              ])),
             ],
           ),
         ),
@@ -194,10 +193,10 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
         if (!_hasApiKey) ...[
           _buildNoApiKey(),
         ] else if (_isLoadingText) ...[
-          const Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircularProgressIndicator(color: Color(0xFF6C5CE7)),
-            SizedBox(height: 16),
-            Text('Reading document...', style: TextStyle(color: Colors.white54)),
+          Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const AiOrb(size: 120, thinking: true),
+            const SizedBox(height: 16),
+            Text('Reading document…', style: AppTheme.body(14, color: AppTheme.creamMuted)),
           ]))),
         ] else if (_textError != null) ...[
           Expanded(child: Center(child: Padding(
@@ -209,9 +208,10 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           // Tabs
           TabBar(
             controller: _tabController,
-            labelColor: const Color(0xFFA29BFE),
+            labelColor: AppTheme.brandGoldLight,
             unselectedLabelColor: Colors.white38,
-            indicatorColor: const Color(0xFF6C5CE7),
+            indicatorColor: AppTheme.brandGold,
+            dividerColor: AppTheme.brandGold.withValues(alpha: 0.12),
             tabs: const [
               Tab(icon: Icon(Icons.chat_rounded, size: 18), text: 'Chat'),
               Tab(icon: Icon(Icons.summarize_rounded, size: 18), text: 'Summary'),
@@ -245,7 +245,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.key_rounded, size: 48, color: Color(0xFF6C5CE7)),
+              const AiOrb(size: 110),
               const SizedBox(height: 16),
               const Text('API Key Required', style: TextStyle(
                 fontWeight: FontWeight.w700, fontSize: 18)),
@@ -254,13 +254,13 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () {
+              Button3D(
+                onTap: () {
                   Navigator.pop(context);
                   context.push('/settings');
                 },
-                icon: const Icon(Icons.settings_rounded, size: 18),
-                label: const Text('Open Settings'),
+                icon: Icons.key_rounded,
+                label: 'Add my key',
               ),
             ],
           ),
@@ -278,14 +278,13 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
               ? Center(child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.chat_bubble_outline, size: 40,
-                      color: Colors.white.withValues(alpha: 0.15)),
+                    const AiOrb(size: 120),
                     const SizedBox(height: 12),
                     Text('Ask anything about this document',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
                     const SizedBox(height: 16),
-                    Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
+                    Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                       _quickChip('What is this about?'),
                       _quickChip('Key takeaways?'),
                       _quickChip('Any deadlines?'),
@@ -293,8 +292,14 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                   ])))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _chatMessages.length,
-                  itemBuilder: (_, i) => _buildChatBubble(_chatMessages[i]),
+                  itemCount: _chatMessages.length + (context.watch<AiService>().isProcessing ? 1 : 0),
+                  itemBuilder: (_, i) => i < _chatMessages.length
+                      ? _buildChatBubble(_chatMessages[i])
+                      : Align(alignment: Alignment.centerLeft, child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const AiOrb(size: 44, thinking: true),
+                          const SizedBox(width: 6),
+                          Text('Thinking…', style: AppTheme.body(13, color: const Color(0xFFA29BFE))),
+                        ])),
                 ),
         ),
         // Input — safe above keyboard
@@ -303,8 +308,8 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E),
-              border: Border(top: BorderSide(color: AppTheme.darkBorder)),
+              color: const Color(0xFF101016),
+              border: Border(top: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.15))),
             ),
             child: Row(
               children: [
@@ -312,8 +317,11 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A3E),
+                      color: const Color(0xFF07070A),
                       borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.brandGold.withValues(alpha: 0.22)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 6,
+                          offset: const Offset(0, 2), spreadRadius: -1)],
                     ),
                     child: TextField(
                       controller: _chatController,
@@ -328,18 +336,9 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C5CE7),
-                    borderRadius: BorderRadius.circular(21),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                    onPressed: _sendChat,
-                  ),
-                ),
+                const SizedBox(width: 10),
+                Key3D(icon: Icons.arrow_upward_rounded, gold: true, size: 44, tooltip: 'Send',
+                    onTap: context.watch<AiService>().isProcessing ? null : _sendChat),
               ],
             ),
           ),
@@ -349,18 +348,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
   }
 
   Widget _quickChip(String text) {
-    return GestureDetector(
-      onTap: () { _chatController.text = text; _sendChat(); },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.25)),
-        ),
-        child: Text(text, style: const TextStyle(color: Color(0xFFA29BFE), fontSize: 12)),
-      ),
-    );
+    return Chip3D(label: text, onTap: () { _chatController.text = text; _sendChat(); });
   }
 
   Widget _buildChatBubble(_ChatMessage msg) {
@@ -373,14 +361,20 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
         padding: const EdgeInsets.all(14),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         decoration: BoxDecoration(
-          color: isUser
-              ? const Color(0xFF6C5CE7).withValues(alpha: 0.2)
-              : isError ? Colors.red.withValues(alpha: 0.1) : AppTheme.darkCard,
-          borderRadius: BorderRadius.circular(14),
+          gradient: isUser
+              ? LinearGradient(colors: [AppTheme.brandGold.withValues(alpha: 0.28), AppTheme.brandGoldDark.withValues(alpha: 0.18)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight)
+              : isError ? null : const LinearGradient(colors: [Color(0xFF22222B), Color(0xFF131319)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight),
+          color: isError ? Colors.red.withValues(alpha: 0.1) : null,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18), topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4), bottomRight: Radius.circular(isUser ? 4 : 18)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 12, offset: const Offset(0, 6))],
           border: Border.all(
             color: isUser
-                ? const Color(0xFF6C5CE7).withValues(alpha: 0.3)
-                : isError ? Colors.red.withValues(alpha: 0.3) : AppTheme.darkBorder,
+                ? AppTheme.brandGold.withValues(alpha: 0.4)
+                : isError ? Colors.red.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.07),
           ),
         ),
         child: SelectableText(
@@ -402,36 +396,27 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Style selector
-          Wrap(spacing: 8, children: [
+          Wrap(spacing: 8, runSpacing: 8, children: [
             for (final style in ['executive', 'academic', 'casual', 'legal'])
-              ChoiceChip(
-                label: Text(style[0].toUpperCase() + style.substring(1)),
+              Chip3D(
+                label: style[0].toUpperCase() + style.substring(1),
                 selected: _summaryStyle == style,
-                selectedColor: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                onSelected: (_) => setState(() => _summaryStyle = style),
+                onTap: () => setState(() => _summaryStyle = style),
               ),
           ]),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: context.watch<AiService>().isProcessing ? null : _generateSummary,
-            icon: const Icon(Icons.summarize_rounded, size: 18),
-            label: Text(_summary == null ? 'Generate Summary' : 'Regenerate'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6C5CE7),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
+          Center(child: Button3D(
+            onTap: context.watch<AiService>().isProcessing ? null : _generateSummary,
+            icon: Icons.auto_awesome,
+            label: _summary == null ? 'Generate Summary' : 'Regenerate',
+          )),
           const SizedBox(height: 16),
           if (_summary != null)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.darkCard, borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.darkBorder),
-                ),
+              child: Slab3D(
+                accent: AppTheme.brandGold,
                 child: SingleChildScrollView(
-                  child: SelectableText(_summary!, style: const TextStyle(fontSize: 14, height: 1.6)),
+                  child: SelectableText(_summary!, style: AppTheme.body(14, height: 1.6)),
                 ),
               ),
             ),
@@ -447,26 +432,18 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton.icon(
-            onPressed: context.watch<AiService>().isProcessing ? null : _generateInsights,
-            icon: const Icon(Icons.insights_rounded, size: 18),
-            label: Text(_insights == null ? 'Extract Insights' : 'Re-analyze'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6C5CE7),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
+          Center(child: Button3D(
+            onTap: context.watch<AiService>().isProcessing ? null : _generateInsights,
+            icon: Icons.insights_rounded,
+            label: _insights == null ? 'Extract Insights' : 'Re-analyze',
+          )),
           const SizedBox(height: 16),
           if (_insights != null)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.darkCard, borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.darkBorder),
-                ),
+              child: Slab3D(
+                accent: AppTheme.brandGold,
                 child: SingleChildScrollView(
-                  child: SelectableText(_insights!, style: const TextStyle(fontSize: 14, height: 1.6)),
+                  child: SelectableText(_insights!, style: AppTheme.body(14, height: 1.6)),
                 ),
               ),
             ),
@@ -497,26 +474,19 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
             ]),
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: context.watch<AiService>().isProcessing ? null : _scanPii,
-            icon: const Icon(Icons.security_rounded, size: 18),
-            label: Text(_piiResult == null ? 'Scan for PII' : 'Rescan'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.orange.shade800,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
+          Center(child: Button3D(
+            onTap: context.watch<AiService>().isProcessing ? null : _scanPii,
+            icon: Icons.security_rounded,
+            label: _piiResult == null ? 'Scan for PII' : 'Rescan',
+            gold: false,
+          )),
           const SizedBox(height: 16),
           if (_piiResult != null)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.darkCard, borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.darkBorder),
-                ),
+              child: Slab3D(
+                accent: Colors.orange,
                 child: SingleChildScrollView(
-                  child: SelectableText(_piiResult!, style: const TextStyle(fontSize: 14, height: 1.6)),
+                  child: SelectableText(_piiResult!, style: AppTheme.body(14, height: 1.6)),
                 ),
               ),
             ),

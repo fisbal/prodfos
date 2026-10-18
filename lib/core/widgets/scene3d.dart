@@ -86,7 +86,7 @@ class _Tilt3DState extends State<Tilt3D> {
 class Button3D extends StatelessWidget {
   final String label;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool gold;
   const Button3D({super.key, required this.label, required this.icon, required this.onTap, this.gold = true});
 
@@ -99,7 +99,7 @@ class Button3D extends StatelessWidget {
     final base = gold ? AppTheme.brandGoldDark : const Color(0xFF07070A);
     final fg = gold ? const Color(0xFF1A1406) : AppTheme.cream;
 
-    return Tilt3D(
+    return Opacity(opacity: onTap == null ? 0.45 : 1, child: Tilt3D(
       onTap: onTap,
       maxTilt: 0.10,
       builder: (context, pressed, tilt) {
@@ -180,7 +180,7 @@ class Button3D extends StatelessWidget {
           ),
         ]);
       },
-    );
+    ));
   }
 }
 
@@ -290,7 +290,10 @@ class SceneView extends StatefulWidget {
   final Scene scene;
   final Color accent;
   final Offset parallax;
-  const SceneView({super.key, required this.scene, this.accent = AppTheme.brandGold, this.parallax = Offset.zero});
+  /// Faster, brighter animation (DocMind thinking).
+  final bool active;
+  const SceneView({super.key, required this.scene, this.accent = AppTheme.brandGold,
+      this.parallax = Offset.zero, this.active = false});
 
   @override
   State<SceneView> createState() => _SceneViewState();
@@ -298,7 +301,18 @@ class SceneView extends StatefulWidget {
 
 class _SceneViewState extends State<SceneView> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 4200))..repeat();
+      AnimationController(vsync: this, duration: _duration)..repeat();
+
+  Duration get _duration => Duration(milliseconds: widget.active ? 1300 : 4200);
+
+  @override
+  void didUpdateWidget(covariant SceneView old) {
+    super.didUpdateWidget(old);
+    if (old.active != widget.active) {
+      _c.duration = _duration;
+      _c.repeat();
+    }
+  }
 
   @override
   void dispose() { _c.dispose(); super.dispose(); }
@@ -307,7 +321,7 @@ class _SceneViewState extends State<SceneView> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: CustomPaint(
-        painter: _ScenePainter(widget.scene, _c, widget.accent, widget.parallax),
+        painter: _ScenePainter(widget.scene, _c, widget.accent, widget.parallax, active: widget.active),
         size: Size.infinite,
       ),
     );
@@ -318,11 +332,12 @@ class _SceneViewState extends State<SceneView> with SingleTickerProviderStateMix
 class AiOrb extends StatelessWidget {
   final double size;
   final VoidCallback? onTap;
-  const AiOrb({super.key, this.size = 64, this.onTap});
+  final bool thinking;
+  const AiOrb({super.key, this.size = 64, this.onTap, this.thinking = false});
 
   @override
   Widget build(BuildContext context) {
-    final orb = SizedBox(width: size, height: size, child: const SceneView(scene: Scene.ai));
+    final orb = SizedBox(width: size, height: size, child: SceneView(scene: Scene.ai, active: thinking));
     if (onTap == null) return orb;
     return Tilt3D(onTap: onTap, maxTilt: 0.25, builder: (_, __, ___) => orb);
   }
@@ -345,7 +360,8 @@ class _ScenePainter extends CustomPainter {
   final Animation<double> t;
   final Color accent;
   final Offset parallax;
-  _ScenePainter(this.scene, this.t, this.accent, this.parallax) : super(repaint: t);
+  final bool active;
+  _ScenePainter(this.scene, this.t, this.accent, this.parallax, {this.active = false}) : super(repaint: t);
 
   static const _paper = Color(0xFFF4F0E6);
   static const _paperSide = Color(0xFFCFC7B4);
@@ -613,12 +629,12 @@ class _ScenePainter extends CustomPainter {
   void _ai(Canvas c, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final r = math.min(size.width, size.height) * 0.30;
-    final pulse = 1 + 0.04 * wave();
+    final pulse = 1 + (active ? 0.09 : 0.04) * wave();
     const violet = Color(0xFF6C5CE7);
 
     // halo
     c.drawCircle(center, r * 1.9 * pulse, Paint()
-      ..shader = RadialGradient(colors: [violet.withValues(alpha: 0.35), accent.withValues(alpha: 0.08), Colors.transparent],
+      ..shader = RadialGradient(colors: [violet.withValues(alpha: active ? 0.6 : 0.35), accent.withValues(alpha: active ? 0.18 : 0.08), Colors.transparent],
           stops: const [0, 0.55, 1]).createShader(Rect.fromCircle(center: center, radius: r * 1.9 * pulse)));
 
     // orbit ring (tilted ellipse) — back half first
@@ -683,5 +699,218 @@ class _ScenePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ScenePainter old) =>
-      old.scene != scene || old.accent != accent || old.parallax != parallax;
+      old.scene != scene || old.accent != accent || old.parallax != parallax || old.active != active;
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// Small 3D parts
+// ══════════════════════════════════════════════════════════════════
+
+/// Round extruded key — toolbar buttons, send button.
+class Key3D extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String? tooltip;
+  final double size;
+  final bool gold;
+  final bool active;
+  const Key3D({super.key, required this.icon, required this.onTap, this.tooltip,
+      this.size = 40, this.gold = false, this.active = false});
+
+  @override
+  Widget build(BuildContext context) {
+    const depth = 4.0;
+    final faceTop = gold ? AppTheme.brandGoldLight : const Color(0xFF2C2C37);
+    final faceBottom = gold ? AppTheme.brandGold : const Color(0xFF16161D);
+    final base = gold ? AppTheme.brandGoldDark : const Color(0xFF040406);
+    final fg = gold ? const Color(0xFF1A1406) : (active ? AppTheme.brandGold : AppTheme.cream.withValues(alpha: 0.88));
+    final key = Opacity(
+      opacity: onTap == null ? 0.4 : 1,
+      child: Tilt3D(
+        onTap: onTap,
+        maxTilt: 0.3,
+        builder: (context, pressed, tilt) {
+          final sink = pressed ? depth - 1 : 0.0;
+          return SizedBox(
+            width: size, height: size + depth,
+            child: Stack(clipBehavior: Clip.none, children: [
+              Positioned(
+                left: 0, right: 0, top: depth, height: size,
+                child: DecoratedBox(decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: base,
+                  border: Border.all(color: AppTheme.brandGold.withValues(alpha: gold ? 0 : 0.18)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.55),
+                      blurRadius: pressed ? 4 : 10, offset: Offset(0, pressed ? 2 : 5))],
+                )),
+              ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 100),
+                left: 0, right: 0, top: sink, height: size,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment(-0.6 + tilt.dx * 0.4, -1), end: const Alignment(0.6, 1),
+                      colors: [faceTop, faceBottom],
+                    ),
+                    border: Border.all(color: active
+                        ? AppTheme.brandGold.withValues(alpha: 0.7)
+                        : Colors.white.withValues(alpha: gold ? 0.35 : 0.09)),
+                  ),
+                  foregroundDecoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.35, -0.6), radius: 0.7,
+                      colors: [Colors.white.withValues(alpha: gold ? 0.35 : 0.10), Colors.white.withValues(alpha: 0)],
+                    ),
+                  ),
+                  child: Icon(icon, size: size * 0.48, color: fg),
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+    return tooltip == null ? key : Tooltip(message: tooltip!, child: key);
+  }
+}
+
+/// Obsidian slab card with real thickness (settings groups, AI results).
+class Slab3D extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color accent;
+  final double radius;
+  const Slab3D({super.key, required this.child, this.padding = const EdgeInsets.all(16),
+      this.accent = AppTheme.brandGold, this.radius = 20});
+
+  @override
+  Widget build(BuildContext context) {
+    const depth = 5.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: depth),
+      child: Stack(clipBehavior: Clip.none, fit: StackFit.passthrough, children: [
+        Positioned.fill(
+          top: depth, bottom: -depth,
+          child: DecoratedBox(decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            color: const Color(0xFF050507),
+            border: Border.all(color: accent.withValues(alpha: 0.16)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 22, offset: const Offset(0, 12))],
+          )),
+        ),
+        Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            gradient: const LinearGradient(
+              begin: Alignment(-0.8, -1), end: Alignment(0.8, 1),
+              colors: [Color(0xFF23232C), Color(0xFF15151C), Color(0xFF0F0F14)],
+              stops: [0, 0.5, 1],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: const Alignment(0, -0.85),
+              colors: [accent.withValues(alpha: 0.10), accent.withValues(alpha: 0)],
+            ),
+          ),
+          child: child,
+        ),
+      ]),
+    );
+  }
+}
+
+/// Small extruded pill — suggestions, choices.
+class Chip3D extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool selected;
+  final Color accent;
+  const Chip3D({super.key, required this.label, required this.onTap, this.selected = false,
+      this.accent = AppTheme.brandGold});
+
+  @override
+  Widget build(BuildContext context) {
+    const depth = 3.0;
+    return Tilt3D(
+      onTap: onTap,
+      maxTilt: 0.2,
+      builder: (context, pressed, tilt) {
+        final sink = pressed || selected ? depth - 1 : 0.0;
+        return Stack(clipBehavior: Clip.none, children: [
+          Positioned(
+            left: 0, right: 0, top: depth, bottom: 0,
+            child: DecoratedBox(decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: selected ? Color.lerp(accent, Colors.black, 0.55) : const Color(0xFF050507),
+              border: Border.all(color: accent.withValues(alpha: 0.2)),
+            )),
+          ),
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 100),
+            padding: EdgeInsets.only(top: sink, bottom: depth - sink),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: selected
+                      ? [Color.lerp(accent, Colors.white, 0.35)!, accent]
+                      : const [Color(0xFF2A2A34), Color(0xFF17171E)],
+                ),
+                border: Border.all(color: selected ? Colors.white.withValues(alpha: 0.3) : accent.withValues(alpha: 0.3)),
+              ),
+              child: Text(label, style: AppTheme.body(12.5, weight: FontWeight.w600,
+                  color: selected ? const Color(0xFF1A1406) : AppTheme.cream.withValues(alpha: 0.85))),
+            ),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+/// Embossed icon chip used in lists (settings rows).
+class IconChip3D extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+  const IconChip3D({super.key, required this.icon, this.color = AppTheme.brandGold, this.size = 40});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.3),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color.lerp(color, Colors.white, 0.15)!.withValues(alpha: 0.32), color.withValues(alpha: 0.08)],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 8, offset: const Offset(0, 4)),
+          BoxShadow(color: color.withValues(alpha: 0.18), blurRadius: 12, spreadRadius: -2),
+        ],
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.3),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.center,
+          colors: [Colors.white.withValues(alpha: 0.16), Colors.white.withValues(alpha: 0)],
+        ),
+      ),
+      child: Icon(icon, size: size * 0.5, color: color, shadows: [
+        Shadow(color: Colors.black.withValues(alpha: 0.6), offset: const Offset(0, 1.5), blurRadius: 2),
+      ]),
+    );
+  }
 }
