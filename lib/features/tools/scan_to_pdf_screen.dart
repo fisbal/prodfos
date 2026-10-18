@@ -361,8 +361,8 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           clipBehavior: Clip.antiAlias,
           child: Row(children: [
-            Image(image: AppFiles.image(page.path), width: 80, height: 100, fit: BoxFit.cover,
-              cacheWidth: 240,
+            Image(image: ResizeImage(AppFiles.image(page.path), width: 240),
+              width: 80, height: 100, fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(width: 80, height: 100, color: AppTheme.darkBg,
                 child: const Icon(Icons.broken_image, size: 24))),
             const SizedBox(width: 14),

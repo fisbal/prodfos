@@ -99,5 +99,12 @@ class AppFiles {
   /// Native: same as [share]. Web: downloads to the computer.
   static Future<void> download(String path) => share(path);
 
+  /// Saves raw bytes to the ProDFOS folder (web: browser download). Returns the path.
+  static Future<String> downloadBytes(Uint8List bytes, String name) async {
+    final path = join(await outputDir(), name);
+    await writeBytes(path, bytes);
+    return path;
+  }
+
   static ImageProvider image(String path) => FileImage(File(path));
 }
