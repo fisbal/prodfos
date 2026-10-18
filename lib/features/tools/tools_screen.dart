@@ -116,8 +116,8 @@ class _ToolsScreenState extends State<ToolsScreen> {
       (Scene.merge, 'Merge', 'Combine PDFs into one', '/tools/merge'),
       (Scene.split, 'Split', 'Extract pages or ranges', '/tools/split'),
       (Scene.extract, 'Extract Text', 'Pull all text to .txt', '/tools/extract-text'),
-      (Scene.images, 'Images → PDF', 'Photos into a document', '/tools/images-to-pdf'),
-      (Scene.text, 'Text → PDF', 'Type it, save it', '/tools/text-to-pdf'),
+      (Scene.images, 'Images to PDF', 'Photos into a document', '/tools/images-to-pdf'),
+      (Scene.text, 'Text to PDF', 'Type it, save it', '/tools/text-to-pdf'),
     ];
 
     return Scaffold(
@@ -157,12 +157,12 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                   child: IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Expanded(child: SceneTile(
-                      scene: Scene.edit, label: 'Edit PDF', large: true, sceneHeight: 70,
+                      scene: Scene.edit, label: 'Edit PDF', large: true, sceneHeight: 96,
                       subtitle: 'Sign, annotate, fill forms, organize pages',
                       onTap: _pickAndEdit)),
                     const SizedBox(width: 12),
                     Expanded(child: SceneTile(
-                      scene: Scene.scan, label: 'Scan', large: true, sceneHeight: 70,
+                      scene: Scene.scan, label: 'Scan', large: true, sceneHeight: 96,
                       subtitle: 'Camera to crisp PDF, auto edges',
                       accent: const Color(0xFF4DB6AC), onTap: () => _go('/tools/scan'))),
                   ])),
@@ -174,12 +174,12 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   sliver: SliverGrid.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 12,
-                      mainAxisExtent: 168,
+                      mainAxisExtent: 196,
                     ),
                     itemCount: grid.length,
                     itemBuilder: (_, i) => SceneTile(
                       scene: grid[i].$1, label: grid[i].$2, subtitle: grid[i].$3,
-                      large: true, sceneHeight: 56,
+                      large: true, sceneHeight: 78,
                       onTap: () => _go(grid[i].$4),
                     ).riseIn(i + 2),
                   ),

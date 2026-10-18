@@ -141,6 +141,7 @@ class Button3D extends StatelessWidget {
             padding: EdgeInsets.only(top: sink, bottom: _depth - sink),
             child: Container(
               height: 54,
+              clipBehavior: Clip.antiAlias,
               padding: const EdgeInsets.symmetric(horizontal: 22),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
@@ -155,12 +156,11 @@ class Button3D extends StatelessWidget {
               child: Stack(alignment: Alignment.center, children: [
                 // Glossy top highlight
                 Positioned(
-                  left: -16, right: -16, top: 3, height: 20,
+                  left: -22, right: -22, top: 0, height: 26,
                   child: DecoratedBox(decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.white.withValues(alpha: gold ? 0.45 : 0.10), Colors.white.withValues(alpha: 0)],
+                      colors: [Colors.white.withValues(alpha: gold ? 0.40 : 0.09), Colors.white.withValues(alpha: 0)],
                     ),
                   )),
                 ),
@@ -249,8 +249,8 @@ class SceneTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(r),
                 // Rim light catching the top edge
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: const Alignment(0, -0.6),
-                  colors: [accent.withValues(alpha: 0.22), accent.withValues(alpha: 0)],
+                  begin: Alignment.topCenter, end: const Alignment(0, -0.82),
+                  colors: [accent.withValues(alpha: 0.11), accent.withValues(alpha: 0)],
                 ),
               ),
               padding: large
@@ -262,7 +262,7 @@ class SceneTile extends StatelessWidget {
                 children: [
                   SizedBox(
                     height: sceneHeight,
-                    width: large ? sceneHeight * 1.5 : double.infinity,
+                    width: double.infinity,
                     child: SceneView(scene: scene, accent: accent, parallax: tilt),
                   ),
                   SizedBox(height: large ? 14 : 6),
@@ -371,8 +371,8 @@ class _ScenePainter extends CustomPainter {
 
   // Fit a scene whose footprint is (w x d) units into the box.
   _Iso _fit(Size size, double w, double d, {double lift = 0.3}) {
-    final s = math.min(size.width / ((w + d) * 0.866 + 0.25), size.height / ((w + d) * 0.5 + lift + 0.45));
-    final center = Offset(size.width / 2, size.height * 0.60);
+    final s = math.min(size.width / ((w + d) * 0.866 + 0.15), size.height / ((w + d) * 0.5 + lift * 0.6 + 0.12));
+    final center = Offset(size.width / 2, size.height * (0.52 + 0.08 * lift));
     final c = Offset((w - d) / 2 * 0.866 * s, (w + d) / 2 * 0.5 * s);
     return _Iso(center - c, s);
   }

@@ -174,7 +174,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         for (int i = 0; i < tools.length; i++) ...[
           if (i > 0) const SizedBox(width: 10),
           Expanded(child: SceneTile(
-            scene: tools[i].$1, label: tools[i].$2, onTap: tools[i].$3, sceneHeight: 50,
+            scene: tools[i].$1, label: tools[i].$2, onTap: tools[i].$3, sceneHeight: 62,
           )),
         ],
       ]),
@@ -269,7 +269,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 56, 24, 0),
       child: Column(children: [
-        const SizedBox(width: 130, height: 100, child: SceneView(scene: Scene.open)),
+        const SizedBox(width: 170, height: 130, child: SceneView(scene: Scene.open)),
         const SizedBox(height: 22),
         Text('Your library is quiet.',
             style: AppTheme.display(24, italic: true, weight: FontWeight.w500)),
