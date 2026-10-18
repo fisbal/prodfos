@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
+import '../../core/widgets/scene3d.dart';
 import '../../core/services/document_manager.dart';
 import '../../core/platform/app_files.dart';
 
@@ -127,7 +128,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _hero() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 38, 24, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Stack(clipBehavior: Clip.none, children: [
+      // DocMind™ orb floating beside the headline
+      Positioned(
+        right: -6, top: -8,
+        child: Tooltip(
+          message: 'Open a PDF and ask DocMind™',
+          child: AiOrb(size: 96, onTap: _openFilePicker),
+        ).cinematicIn(delayMs: 400),
+      ),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(_greeting, style: AppTheme.body(14, color: AppTheme.creamMuted, letterSpacing: 0.3))
             .cinematicIn(delayMs: 100),
         const SizedBox(height: 10),
@@ -141,37 +151,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
             style: AppTheme.body(14.5, color: AppTheme.creamFaint, height: 1.4))
             .cinematicIn(delayMs: 450),
         const SizedBox(height: 28),
-        Wrap(spacing: 12, runSpacing: 12, children: [
-          GoldPillButton(label: 'Open PDF', icon: Icons.add_rounded, onTap: _openFilePicker),
-          GlassPillButton(label: 'Scan', icon: Icons.document_scanner_rounded,
+        Wrap(spacing: 14, runSpacing: 14, children: [
+          Button3D(label: 'Open PDF', icon: Icons.add_rounded, onTap: _openFilePicker),
+          Button3D(label: 'Scan', icon: Icons.document_scanner_rounded, gold: false,
               onTap: () => context.push('/tools/scan')),
         ]).cinematicIn(delayMs: 560),
+      ]),
       ]),
     );
   }
 
   Widget _quickTools() {
-    final tools = <(IconData, String, VoidCallback)>[
-      (Icons.edit_note_rounded, 'Edit', _pickAndEdit),
-      (Icons.call_merge_rounded, 'Merge', () => context.push('/tools/merge')),
-      (Icons.call_split_rounded, 'Split', () => context.push('/tools/split')),
-      (Icons.widgets_rounded, 'All tools', () => context.push('/tools')),
+    final tools = <(Scene, String, VoidCallback)>[
+      (Scene.edit, 'Edit', _pickAndEdit),
+      (Scene.merge, 'Merge', () => context.push('/tools/merge')),
+      (Scene.split, 'Split', () => context.push('/tools/split')),
+      (Scene.tools, 'All tools', () => context.push('/tools')),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 34, 20, 0),
       child: Row(children: [
         for (int i = 0; i < tools.length; i++) ...[
           if (i > 0) const SizedBox(width: 10),
-          Expanded(child: GlassCard(
-            radius: 16,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            onTap: tools[i].$3,
-            child: Column(children: [
-              Icon(tools[i].$1, size: 22, color: AppTheme.brandGold),
-              const SizedBox(height: 6),
-              Text(tools[i].$2, maxLines: 1, style: AppTheme.body(11.5, weight: FontWeight.w600,
-                  color: AppTheme.cream.withValues(alpha: 0.8))),
-            ]),
+          Expanded(child: SceneTile(
+            scene: tools[i].$1, label: tools[i].$2, onTap: tools[i].$3, sceneHeight: 50,
           )),
         ],
       ]),
@@ -266,18 +269,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 56, 24, 0),
       child: Column(children: [
-        Container(
-          width: 76, height: 76,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppTheme.goldHairline),
-            gradient: RadialGradient(colors: [
-              AppTheme.brandGold.withValues(alpha: 0.14), Colors.transparent,
-            ]),
-          ),
-          child: Icon(Icons.auto_stories_rounded, size: 32,
-              color: AppTheme.brandGold.withValues(alpha: 0.8)),
-        ),
+        const SizedBox(width: 130, height: 100, child: SceneView(scene: Scene.open)),
         const SizedBox(height: 22),
         Text('Your library is quiet.',
             style: AppTheme.display(24, italic: true, weight: FontWeight.w500)),

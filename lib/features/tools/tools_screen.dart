@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
+import '../../core/widgets/scene3d.dart';
 
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({super.key});
@@ -111,12 +112,12 @@ class _ToolsScreenState extends State<ToolsScreen> {
   // ══════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final grid = <(IconData, String, String, String)>[
-      (Icons.call_merge_rounded, 'Merge', 'Combine PDFs into one', '/tools/merge'),
-      (Icons.call_split_rounded, 'Split', 'Extract pages or ranges', '/tools/split'),
-      (Icons.text_snippet_rounded, 'Extract Text', 'Pull all text to .txt', '/tools/extract-text'),
-      (Icons.photo_library_rounded, 'Images → PDF', 'Photos into a document', '/tools/images-to-pdf'),
-      (Icons.edit_document, 'Text → PDF', 'Type it, save it', '/tools/text-to-pdf'),
+    final grid = <(Scene, String, String, String)>[
+      (Scene.merge, 'Merge', 'Combine PDFs into one', '/tools/merge'),
+      (Scene.split, 'Split', 'Extract pages or ranges', '/tools/split'),
+      (Scene.extract, 'Extract Text', 'Pull all text to .txt', '/tools/extract-text'),
+      (Scene.images, 'Images → PDF', 'Photos into a document', '/tools/images-to-pdf'),
+      (Scene.text, 'Text → PDF', 'Type it, save it', '/tools/text-to-pdf'),
     ];
 
     return Scaffold(
@@ -155,13 +156,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                   child: IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Expanded(child: _featured(
-                      icon: Icons.edit_note_rounded, title: 'Edit PDF',
+                    Expanded(child: SceneTile(
+                      scene: Scene.edit, label: 'Edit PDF', large: true, sceneHeight: 70,
                       subtitle: 'Sign, annotate, fill forms, organize pages',
-                      accent: AppTheme.brandGold, onTap: _pickAndEdit)),
+                      onTap: _pickAndEdit)),
                     const SizedBox(width: 12),
-                    Expanded(child: _featured(
-                      icon: Icons.document_scanner_rounded, title: 'Scan',
+                    Expanded(child: SceneTile(
+                      scene: Scene.scan, label: 'Scan', large: true, sceneHeight: 70,
                       subtitle: 'Camera to crisp PDF, auto edges',
                       accent: const Color(0xFF4DB6AC), onTap: () => _go('/tools/scan'))),
                   ])),
@@ -172,22 +173,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   sliver: SliverGrid.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12,
-                      childAspectRatio: 1.35,
+                      crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 12,
+                      mainAxisExtent: 168,
                     ),
                     itemCount: grid.length,
-                    itemBuilder: (_, i) => GlassCard(
-                      radius: 18,
-                      padding: const EdgeInsets.all(16),
+                    itemBuilder: (_, i) => SceneTile(
+                      scene: grid[i].$1, label: grid[i].$2, subtitle: grid[i].$3,
+                      large: true, sceneHeight: 56,
                       onTap: () => _go(grid[i].$4),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Icon(grid[i].$1, size: 24, color: AppTheme.brandGold),
-                        const Spacer(),
-                        Text(grid[i].$2, style: AppTheme.display(17, height: 1.15)),
-                        const SizedBox(height: 4),
-                        Text(grid[i].$3, maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: AppTheme.body(11.5, color: AppTheme.creamFaint, height: 1.3)),
-                      ]),
                     ).riseIn(i + 2),
                   ),
                 ),
@@ -232,34 +225,6 @@ class _ToolsScreenState extends State<ToolsScreen> {
           ),
         )),
       ),
-    );
-  }
-
-  Widget _featured({
-    required IconData icon, required String title, required String subtitle,
-    required Color accent, required VoidCallback onTap,
-  }) {
-    return GlassCard(
-      gold: accent == AppTheme.brandGold,
-      radius: 22,
-      padding: const EdgeInsets.all(18),
-      onTap: onTap,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 46, height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [accent.withValues(alpha: 0.35), accent.withValues(alpha: 0.08)]),
-            border: Border.all(color: accent.withValues(alpha: 0.45)),
-            boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 16)],
-          ),
-          child: Icon(icon, size: 23, color: accent),
-        ),
-        const SizedBox(height: 18),
-        Text(title, style: AppTheme.display(21)),
-        const SizedBox(height: 6),
-        Text(subtitle, style: AppTheme.body(12, color: AppTheme.creamFaint, height: 1.35)),
-      ]),
     );
   }
 
