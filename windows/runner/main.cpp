@@ -17,6 +17,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
+  // Single instance: double-clicking a PDF while ProDFOS is already open
+  // hands the file to the running window instead of starting a second app.
+  HANDLE instance_mutex =
+      ::CreateMutexW(nullptr, TRUE, L"MartinB.ProDFOS.SingleInstance");
+  if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+    HWND existing = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"ProDFOS");
+    if (existing) {
+      std::vector<std::string> args = GetCommandLineArguments();
+      std::string path = args.empty() ? std::string() : args[0];
+      COPYDATASTRUCT cds{};
+      cds.dwData = 0x50444653;  // 'PDFS'
+      cds.cbData = static_cast<DWORD>(path.size() + 1);
+      cds.lpData = const_cast<char*>(path.c_str());
+      if (::IsIconic(existing)) ::ShowWindow(existing, SW_RESTORE);
+      ::SetForegroundWindow(existing);
+      ::SendMessageW(existing, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&cds));
+      if (instance_mutex) ::CloseHandle(instance_mutex);
+      ::CoUninitialize();
+      return EXIT_SUCCESS;
+    }
+  }
+
   flutter::DartProject project(L"data");
 
   std::vector<std::string> command_line_arguments =
@@ -38,6 +60,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  if (instance_mutex) ::CloseHandle(instance_mutex);
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }
