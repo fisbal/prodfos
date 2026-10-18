@@ -69,9 +69,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
       backgroundColor: AppTheme.voidBlack,
       extendBody: true,
       body: CinematicBackdrop(
+        // The list stops ABOVE the floating nav bar (extendBody puts the bar's
+        // height into MediaQuery padding), with a soft fade at its lower edge —
+        // nothing ever hides behind the bar.
         child: ContentWidth(child: SafeArea(
           bottom: false,
-          child: CustomScrollView(
+          child: Builder(builder: (context) => Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (r) => const LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.white, Colors.white, Colors.transparent],
+              stops: [0, 0.94, 1],
+            ).createShader(r),
+            child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _header()),
@@ -95,9 +107,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ],
               ],
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              const SliverToBoxAdapter(child: SizedBox(height: 28)),
             ],
           ),
+          ),
+          )),
         )),
       ),
       bottomNavigationBar: GlassNavBar(current: 0, items: [
