@@ -29,6 +29,13 @@ class ProDFOSApp extends StatefulWidget {
 class _ProDFOSAppState extends State<ProDFOSApp> {
   late final GoRouter _router = GoRouter(
     initialLocation: '/',
+    // Safety net: anything that isn't an in-app page (e.g. a content:// or
+    // file:// address handed over by Android/Windows) goes to the Library.
+    redirect: (_, state) {
+      final loc = state.uri.toString();
+      return (loc.startsWith('/') && !loc.startsWith('//')) ? null : '/';
+    },
+    errorBuilder: (_, __) => const LibraryScreen(),
     routes: [
       GoRoute(path: '/', builder: (_, __) => const LibraryScreen()),
       GoRoute(

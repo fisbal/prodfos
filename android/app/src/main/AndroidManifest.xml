@@ -23,6 +23,12 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- PDFs opened from Gmail/Files are handled by MainActivity's
+                 "prodfos/open_file" channel. Stop Flutter from also treating the
+                 content:// address as an in-app page (caused "Page Not Found"). -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
