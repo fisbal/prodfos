@@ -228,7 +228,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        if (await _confirmDiscard() && mounted) Navigator.pop(context);
+        if (await _confirmDiscard() && mounted) Navigator.of(this.context).pop();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF0B0B10),
@@ -236,7 +236,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
           leading: IconButton(
             icon: const Icon(Icons.close_rounded),
             onPressed: () async {
-              if (await _confirmDiscard() && mounted) Navigator.pop(context);
+              if (await _confirmDiscard() && mounted) Navigator.of(this.context).pop();
             },
           ),
           title: Text('Page ${widget.pageIndex + 1}'),

@@ -63,7 +63,7 @@ class FormsServer {
 
       // Engine files: /x/<path inside assets/pdfjs>
       if (seg.length >= 2 && seg.first == 'x' && req.method == 'GET') {
-        if (seg.contains('..')) return _status(res, 404);
+        if (seg.contains('..')) return await _status(res, 404);
         final rel = seg.skip(1).join('/');
         final data = await rootBundle.load('assets/pdfjs/$rel');
         res.headers.contentType = _typeOf(rel);
@@ -76,7 +76,7 @@ class FormsServer {
       // The document: /doc/<token>
       if (seg.length == 2 && seg.first == 'doc' && req.method == 'GET') {
         final doc = _docs[seg[1]];
-        if (doc == null) return _status(res, 404);
+        if (doc == null) return await _status(res, 404);
         res.headers.contentType = ContentType('application', 'pdf');
         res.headers.contentLength = doc.bytes.length;
         res.add(doc.bytes);
@@ -87,7 +87,7 @@ class FormsServer {
       // Callbacks: POST /api/<token>/save | /api/<token>/event
       if (seg.length == 3 && seg.first == 'api' && req.method == 'POST') {
         final doc = _docs[seg[1]];
-        if (doc == null) return _status(res, 404);
+        if (doc == null) return await _status(res, 404);
         final body = await _readBody(req);
         var reply = <String, dynamic>{};
         if (seg[2] == 'save') {
@@ -99,7 +99,7 @@ class FormsServer {
         return;
       }
 
-      return _status(res, 404);
+      return await _status(res, 404);
     } catch (e) {
       try {
         res.statusCode = 500;

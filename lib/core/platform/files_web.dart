@@ -22,6 +22,9 @@ class AppFiles {
   static Box? _box;
   static int _counter = 0;
 
+  /// Browser storage is already private to this browser.
+  static Future<String?> privateDataDir() async => null;
+
   static Future<void> init() async {
     _box = await Hive.openBox('webfs');
     // Drop stored documents that are no longer in the Library.

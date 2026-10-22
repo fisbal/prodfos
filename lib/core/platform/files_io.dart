@@ -16,6 +16,32 @@ class AppFiles {
 
   static Future<void> init() async {}
 
+  /// Where ProDFOS keeps its private data (library, settings).
+  /// Windows: hidden AppData folder instead of Documents, so sharing
+  /// Documents never exposes your library. Moves old data once.
+  /// Other platforms: null → the default private app storage.
+  static Future<String?> privateDataDir() async {
+    if (!Platform.isWindows) return null;
+    final sep = Platform.pathSeparator;
+    final support = await getApplicationSupportDirectory();
+    final dir = Directory('${support.path}${sep}data');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      for (final box in const ['documents', 'settings']) {
+        final old = File('${docs.path}$sep$box.hive');
+        final moved = File('${dir.path}$sep$box.hive');
+        if (await old.exists() && !await moved.exists()) {
+          await old.copy(moved.path);
+          try { await old.delete(); } catch (_) {}
+          final lock = File('${docs.path}$sep$box.lock');
+          try { if (await lock.exists()) await lock.delete(); } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    return dir.path;
+  }
+
   static Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
   static Future<String> readString(String path) => File(path).readAsString();
 

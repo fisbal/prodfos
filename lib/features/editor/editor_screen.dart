@@ -224,14 +224,14 @@ class _EditorScreenState extends State<EditorScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        if (await _confirmLeave() && mounted) Navigator.pop(context);
+        if (await _confirmLeave() && mounted) Navigator.of(this.context).pop();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () async {
-              if (await _confirmLeave() && mounted) Navigator.pop(context);
+              if (await _confirmLeave() && mounted) Navigator.of(this.context).pop();
             },
           ),
           titleSpacing: 0,

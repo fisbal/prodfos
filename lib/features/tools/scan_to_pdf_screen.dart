@@ -117,12 +117,16 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
         paths = enhanced;
       }
 
+      if (!mounted) return;
       setState(() => _status = 'Building PDF...');
-      final result = await context.read<PdfService>().imagesToPdf(paths);
+      final pdfService = context.read<PdfService>();
+      final result = await pdfService.imagesToPdf(paths);
 
+      if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
-      if (mounted) _showSuccessDialog(result);
+      _showSuccessDialog(result);
     } catch (e) {
+      if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));

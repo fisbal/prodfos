@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
 import '../../core/widgets/scene3d.dart';
@@ -201,14 +202,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ])),
               ]),
             ),
-            _SettingsTile(icon: Icons.star_outline_rounded, title: 'Rate ProDFOS',
-                subtitle: 'Love it? Leave a review', onTap: () {}),
-            _SettingsTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy', onTap: () {}),
-            _SettingsTile(icon: Icons.description_outlined, title: 'Terms of Service', onTap: () {}),
+            _SettingsTile(icon: Icons.forum_outlined, title: 'Send Feedback',
+                subtitle: 'Report a bug or suggest an idea',
+                onTap: () => _openLink('https://github.com/fisbal/prodfos/issues/new')),
+            _SettingsTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy',
+                subtitle: 'Your files never leave your device',
+                onTap: () => _openLink('https://fisbal.github.io/prodfos/privacy.html')),
+            _SettingsTile(icon: Icons.description_outlined, title: 'Terms of Service',
+                onTap: () => _openLink('https://fisbal.github.io/prodfos/terms.html')),
+            _SettingsTile(icon: Icons.code_rounded, title: 'Open-source licenses',
+                subtitle: 'pdf.js, Flutter and the libraries ProDFOS uses',
+                onTap: () => showLicensePage(
+                  context: context,
+                  applicationName: AppConstants.appName,
+                  applicationVersion: AppConstants.appVersion,
+                  applicationLegalese: '© 2026 MartinB',
+                )),
           ]),
         ],
       )))),
     );
+  }
+
+  Future<void> _openLink(String url) async {
+    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open $url')));
+    }
   }
 
   Widget _group(String title, List<Widget> children, {Color accent = AppTheme.brandGold}) {
