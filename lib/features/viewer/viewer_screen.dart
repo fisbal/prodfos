@@ -182,6 +182,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           key: _viewerKey, controller: _controller,
           canShowScrollHead: prefs.showScrollHead,
           enableTextSelection: true, pageSpacing: prefs.pageSpacing,
+          maxZoomLevel: 5, enableDoubleTapZooming: true, // pinch and double-tap zoom, required in every app
           onDocumentLoaded: _onLoaded, onPageChanged: _onPageChanged, onDocumentLoadFailed: _onFailed,
         ),
       ),

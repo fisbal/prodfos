@@ -53,6 +53,42 @@ void main() {
     await prefs.init();
   });
 
+  // Turning the device: each page must re-fit when a phone or tablet goes from upright to
+  // sideways and back, without a restart.
+  for (final device in const {'phone': Size(390, 844), 'tablet': Size(820, 1180)}.entries) {
+    for (final page in pages) {
+      testWidgets('$page re-fits when a ${device.key} turns sideways and back', (tester) async {
+        final upright = device.value;
+        tester.view.physicalSize = upright;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final errors = <FlutterErrorDetails>[];
+        final reportError = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        await tester.pumpWidget(MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: prefs),
+            ChangeNotifierProvider(create: (_) => DocumentManager()),
+            ChangeNotifierProvider(create: (_) => PdfService()),
+            ChangeNotifierProvider(create: (_) => AiService()),
+            ChangeNotifierProvider(create: (_) => UpdateService()),
+          ],
+          child: ProDFOSApp(key: UniqueKey(), initialLocation: page),
+        ));
+        for (final turn in [upright, upright.flipped, upright]) {
+          tester.view.physicalSize = turn;
+          for (var i = 0; i < 20; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 1));
+        FlutterError.onError = reportError;
+        expect(errors, isEmpty, reason: errors.map((e) => e.toString()).join('\n'));
+      });
+    }
+  }
+
   for (final size in sizes.entries) {
     for (final page in pages) {
       testWidgets('$page fits a ${size.key} (${size.value.width.toInt()}x${size.value.height.toInt()})', (tester) async {

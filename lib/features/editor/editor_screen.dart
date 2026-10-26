@@ -281,6 +281,8 @@ class _EditorScreenState extends State<EditorScreen> {
       key: ValueKey(_version),
       controller: _controller,
       pageSpacing: 4,
+      maxZoomLevel: 5, // pinch and double-tap zoom, required in every app
+      enableDoubleTapZooming: true,
       onDocumentLoaded: (d) {
         setState(() => _pageCount = d.document.pages.count);
         if (_page > 1 && _page <= _pageCount) {
