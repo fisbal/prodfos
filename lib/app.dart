@@ -5,6 +5,7 @@ import 'core/platform/app_files.dart';
 import 'core/platform/open_with.dart';
 import 'core/services/document_manager.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/window_bar.dart';
 import 'features/library/library_screen.dart';
 import 'features/viewer/viewer_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -87,6 +88,8 @@ class _ProDFOSAppState extends State<ProDFOSApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
       routerConfig: _router,
+      // Gold MartinB window bar (minimize / full screen / close) above every screen.
+      builder: (context, child) => WindowFrame(child: child ?? const SizedBox.shrink()),
     );
   }
 }

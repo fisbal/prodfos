@@ -9,7 +9,8 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 /**
- * Handles "Open with ProDFOS" for PDFs.
+ * Handles "Open with ProDFOS" for PDFs, and the window bar's minimize / close
+ * ("prodfos/window" channel).
  * The PDF (usually a content:// URI) is copied into app storage and its path
  * is handed to Dart over the "prodfos/open_file" channel:
  *  - getInitialFile : the PDF that launched the app (cold start)
@@ -30,6 +31,15 @@ class MainActivity : FlutterActivity() {
             }
         }
         channel = ch
+        // Gold MartinB window bar: "Réduire" and "Fermer".
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "prodfos/window")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "minimize" -> { moveTaskToBack(true); result.success(null) }
+                    "close" -> { finishAndRemoveTask(); result.success(null) }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     override fun onNewIntent(intent: Intent) {
