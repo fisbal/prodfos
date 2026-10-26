@@ -7,6 +7,7 @@ import '../../core/widgets/cinematic.dart';
 import '../../core/widgets/scene3d.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/preferences_service.dart';
+import '../../core/services/update_service.dart';
 import '../../core/services/document_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -47,10 +48,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.only(left: 6),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+            // Shrinks on narrow phones and with large system text instead of running off the screen.
+            child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Row(
+              mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
               Text('Your ', style: AppTheme.display(40)),
               GoldText('Settings', style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
-            ]),
+            ])),
           ).cinematicIn(delayMs: 140),
           const SizedBox(height: 28),
 
@@ -202,6 +205,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ])),
               ]),
             ),
+            if (UpdateService.supported)
+              _SettingsTile(icon: Icons.system_update_rounded, title: 'Check for updates',
+                  subtitle: 'You have version ${AppConstants.appVersion}',
+                  onTap: () async {
+                    final updates = context.read<UpdateService>();
+                    await updates.check();
+                    if (mounted && updates.available == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('ProDFOS is up to date')));
+                    }
+                  }),
             _SettingsTile(icon: Icons.forum_outlined, title: 'Send Feedback',
                 subtitle: 'Report a bug or suggest an idea',
                 onTap: () => _openLink('https://github.com/fisbal/prodfos/issues/new')),

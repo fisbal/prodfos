@@ -1,14 +1,45 @@
 name: Build ProDFOS
 
+# Every build ships everywhere at once (the same rule as Office In 1):
+#   test     analyze + tests, including every page at phone, tablet, PC and Mac sizes (test/screens_test.dart)
+#   web      on main, published to GitHub Pages
+#   android  APK (universal + arm64) and the Play Store .aab, signed with the permanent key
+#   windows  ProDFOS-Setup.exe (installs and updates itself) and the portable zip
+#   mac      ProDFOS.dmg (Apple silicon and Intel)
+#   release  on main, a GitHub Release v1.0.<run> with all of them, version.json for the
+#            in-app updater, and the source code; the old "latest" download links keep working.
+# Pull requests run the same builds as a check, without publishing.
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BUILD: ${{ github.run_number }}
+  VERSION: 1.0.${{ github.run_number }}
+
 jobs:
+  test:
+    name: Analyze and test (all screen sizes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test
+
   android:
     name: Android APK
     runs-on: ubuntu-latest
@@ -38,11 +69,11 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then echo "Signing with the permanent ProDFOS key" | tee -a $RUNNER_TEMP/log.txt; else echo "WARNING: ANDROID_KEYSTORE_PASSWORD secret missing - debug signing" | tee -a $RUNNER_TEMP/log.txt; fi
-          flutter build apk --release --build-number=${{ github.run_number }} 2>&1 | tee -a $RUNNER_TEMP/log.txt
+          flutter build apk --release --build-name=$VERSION --build-number=$BUILD --dart-define=PRODFOS_BUILD=$BUILD 2>&1 | tee -a $RUNNER_TEMP/log.txt
           # Small per-processor APKs (arm64 = every modern phone, incl. Galaxy S25)
-          flutter build apk --release --split-per-abi --build-number=${{ github.run_number }} 2>&1 | tee -a $RUNNER_TEMP/log.txt
+          flutter build apk --release --split-per-abi --build-name=$VERSION --build-number=$BUILD --dart-define=PRODFOS_BUILD=$BUILD 2>&1 | tee -a $RUNNER_TEMP/log.txt
           # Google Play package (upload this .aab in Play Console)
-          flutter build appbundle --release --build-number=${{ github.run_number }} 2>&1 | tee -a $RUNNER_TEMP/log.txt
+          flutter build appbundle --release --build-name=$VERSION --build-number=$BUILD --dart-define=PRODFOS_BUILD=$BUILD 2>&1 | tee -a $RUNNER_TEMP/log.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ProDFOS-android-apk
@@ -77,11 +108,22 @@ jobs:
       - name: Get packages
         run: flutter pub get 2>&1 | tee $RUNNER_TEMP/log.txt
       - name: Build Windows
-        run: flutter build windows --release 2>&1 | tee -a $RUNNER_TEMP/log.txt
+        run: flutter build windows --release --build-name=$VERSION --build-number=$BUILD --dart-define=PRODFOS_BUILD=$BUILD 2>&1 | tee -a $RUNNER_TEMP/log.txt
+      - name: Make the installer (ProDFOS-Setup.exe)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc "/DAppVersion=$env:VERSION" windows\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: ProDFOS-windows
           path: build/windows/x64/runner/Release/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProDFOS-windows-setup
+          path: build/ProDFOS-Setup.exe
       - name: Publish build log
         if: always()
         run: |
@@ -110,7 +152,7 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee -a $RUNNER_TEMP/log.txt
       - name: Build web
-        run: flutter build web --release --base-href /prodfos/ 2>&1 | tee -a $RUNNER_TEMP/log.txt
+        run: flutter build web --release --base-href /prodfos/ --dart-define=PRODFOS_BUILD=$BUILD 2>&1 | tee -a $RUNNER_TEMP/log.txt
       - name: Deploy to gh-pages branch
         if: github.ref == 'refs/heads/main'
         run: |
@@ -131,10 +173,33 @@ jobs:
           git -c user.name=ci -c user.email=ci@local commit -qm "web log ${{ github.sha }}"
           git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:ci-logs-web
 
+  mac:
+    name: Mac app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build the Mac app (Apple silicon and Intel)
+        run: flutter build macos --release --build-name=$VERSION --build-number=$BUILD --dart-define=PRODFOS_BUILD=$BUILD
+      - name: Make ProDFOS.dmg
+        run: |
+          mkdir -p dmg
+          cp -R build/macos/Build/Products/Release/ProDFOS.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname ProDFOS -srcfolder dmg -ov -format UDZO ProDFOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProDFOS-mac
+          path: ProDFOS.dmg
+
   release:
     name: Publish downloads
-    needs: [android, windows]
-    if: github.ref == 'refs/heads/main'
+    needs: [test, android, windows, mac, web]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -146,7 +211,35 @@ jobs:
           cp "$(find dist/ProDFOS-android-apk -name app-arm64-v8a-release.apk | head -1)" ProDFOS-android-arm64.apk
           cp "$(find dist/ProDFOS-android-apk -name app-release.aab | head -1)" ProDFOS-playstore.aab
           (cd dist/ProDFOS-windows && zip -qr ../../ProDFOS-windows.zip .)
-          ls -la *.apk *.zip
+          cp dist/ProDFOS-windows-setup/ProDFOS-Setup.exe .
+          cp dist/ProDFOS-mac/ProDFOS.dmg .
+          # What installed apps read to know a newer version is out (lib/core/services/update_service.dart)
+          echo "{\"build\": $BUILD, \"version\": \"$VERSION\"}" > version.json
+          ls -la *.apk *.zip *.exe *.dmg version.json
+      - name: Publish release v${{ env.VERSION }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: ProDFOS ${{ env.VERSION }}
+          make_latest: true
+          body: |
+            ProDFOS ${{ env.VERSION }}
+            - **Android**: ProDFOS-android.apk (any phone) or ProDFOS-android-arm64.apk (smaller, modern phones)
+            - **Windows**: ProDFOS-Setup.exe (installs for you, no admin needed), or ProDFOS-windows.zip (portable)
+            - **Mac** (Apple silicon and Intel): ProDFOS.dmg. The first time: right-click ProDFOS, then Open.
+            - **Web**: https://fisbal.github.io/prodfos/
+            - **Google Play**: ProDFOS-playstore.aab
+            - Installed apps update themselves: Windows installs the new version and reopens, Android and Mac offer the download.
+            - Source code: the zip and tar.gz below
+          files: |
+            ProDFOS-android-arm64.apk
+            ProDFOS-android.apk
+            ProDFOS-playstore.aab
+            ProDFOS-windows.zip
+            ProDFOS-Setup.exe
+            ProDFOS.dmg
+            version.json
       - name: Update "latest" release
         uses: softprops/action-gh-release@v2
         with:
@@ -166,3 +259,5 @@ jobs:
             ProDFOS-android.apk
             ProDFOS-playstore.aab
             ProDFOS-windows.zip
+            ProDFOS-Setup.exe
+            ProDFOS.dmg

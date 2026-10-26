@@ -144,11 +144,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Kicker('Craft your documents').cinematicIn(delayMs: 60, blur: false),
                     const SizedBox(height: 10),
-                    Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+                    // Shrinks on narrow phones and with large system text instead of running off the screen.
+                    FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Row(
+                      mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic, children: [
                         Text('PDF ', style: AppTheme.display(40)),
                         GoldText('Tools', style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
-                      ]).cinematicIn(delayMs: 140),
+                      ])).cinematicIn(delayMs: 140),
                   ]),
                 )),
 
