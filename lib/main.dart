@@ -9,6 +9,7 @@ import 'core/services/document_manager.dart';
 import 'core/services/preferences_service.dart';
 import 'core/services/pdf_service.dart';
 import 'core/services/ai_service.dart';
+import 'core/services/update_service.dart';
 import 'app.dart';
 
 void main(List<String> args) async {
@@ -42,6 +43,7 @@ void main(List<String> args) async {
         ChangeNotifierProvider(create: (_) => DocumentManager()),
         ChangeNotifierProvider(create: (_) => PdfService()),
         ChangeNotifierProvider(create: (_) => AiService()),
+        ChangeNotifierProvider(create: (_) => UpdateService()),
       ],
       child: ProDFOSApp(initialFile: initialFile),
     ),

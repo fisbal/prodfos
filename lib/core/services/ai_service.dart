@@ -216,7 +216,7 @@ $documentText'''},
         'content-type': 'application/json',
       },
       body: jsonEncode({
-        'model': 'claude-haiku-4-5-20251001',
+        'model': 'claude-opus-5-5',
         'max_tokens': 4096,
         'system': system,
         'messages': messages,

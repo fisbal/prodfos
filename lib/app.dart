@@ -5,6 +5,7 @@ import 'core/platform/app_files.dart';
 import 'core/platform/open_with.dart';
 import 'core/services/document_manager.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/update_banner.dart';
 import 'core/widgets/window_bar.dart';
 import 'features/library/library_screen.dart';
 import 'features/viewer/viewer_screen.dart';
@@ -21,7 +22,9 @@ import 'features/editor/editor_screen.dart';
 class ProDFOSApp extends StatefulWidget {
   /// A PDF the app was launched with ("Open with ProDFOS"), if any.
   final String? initialFile;
-  const ProDFOSApp({super.key, this.initialFile});
+  /// The first page shown; tests use it to open each page at every screen size.
+  final String initialLocation;
+  const ProDFOSApp({super.key, this.initialFile, this.initialLocation = '/'});
 
   @override
   State<ProDFOSApp> createState() => _ProDFOSAppState();
@@ -29,7 +32,7 @@ class ProDFOSApp extends StatefulWidget {
 
 class _ProDFOSAppState extends State<ProDFOSApp> {
   late final GoRouter _router = GoRouter(
-    initialLocation: '/',
+    initialLocation: widget.initialLocation,
     // Safety net: anything that isn't an in-app page (e.g. a content:// or
     // file:// address handed over by Android/Windows) goes to the Library.
     redirect: (_, state) {
@@ -88,8 +91,9 @@ class _ProDFOSAppState extends State<ProDFOSApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
       routerConfig: _router,
-      // Gold MartinB window bar (minimize / full screen / close) above every screen.
-      builder: (context, child) => WindowFrame(child: child ?? const SizedBox.shrink()),
+      // Gold MartinB window bar (minimize / full screen / close) above every screen,
+      // with the update banner under it.
+      builder: (context, child) => WindowFrame(child: UpdateBanner(child: child ?? const SizedBox.shrink())),
     );
   }
 }
