@@ -15,6 +15,8 @@ import 'package:prodfos/core/services/document_manager.dart';
 import 'package:prodfos/core/services/pdf_service.dart';
 import 'package:prodfos/core/services/preferences_service.dart';
 import 'package:prodfos/core/services/update_service.dart';
+import 'package:prodfos/core/l10n/l10n.dart';
+import 'package:prodfos/core/l10n/strings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const sizes = <String, Size>{
@@ -120,4 +122,53 @@ void main() {
       });
     }
   }
+
+  // Every page in every language: French, Spanish, Portuguese and German texts are longer than English, so each
+  // page must still fit a phone (upright and sideways) and a PC with them — no cut or overlapping text.
+  for (final lang in supportedLangs.skip(1)) {
+    for (final size in const {'phone': Size(390, 844), 'phone-landscape': Size(844, 390), 'pc': Size(1366, 768)}.entries) {
+      for (final page in pages) {
+        testWidgets('$page fits a ${size.key} in $lang', (tester) async {
+          appLang.value = lang;
+          addTearDown(() => appLang.value = 'en');
+          tester.view.physicalSize = size.value;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          final errors = <FlutterErrorDetails>[];
+          final reportError = FlutterError.onError;
+          FlutterError.onError = errors.add;
+          await tester.pumpWidget(MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: prefs),
+              ChangeNotifierProvider(create: (_) => DocumentManager()),
+              ChangeNotifierProvider(create: (_) => PdfService()),
+              ChangeNotifierProvider(create: (_) => AiService()),
+              ChangeNotifierProvider(create: (_) => UpdateService()),
+            ],
+            child: ProDFOSApp(key: UniqueKey(), initialLocation: page),
+          ));
+          for (var i = 0; i < 40; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump(const Duration(seconds: 1));
+          FlutterError.onError = reportError;
+          expect(errors, isEmpty, reason: errors.map((e) => e.toString()).join('\n'));
+        });
+      }
+    }
+  }
+
+  test('every text has its 4 translations', () {
+    for (final e in strings.entries) {
+      expect(e.value.length, 4, reason: e.key);
+      for (final t in e.value) {
+        expect(t.trim(), isNotEmpty, reason: e.key);
+      }
+    }
+    appLang.value = 'fr';
+    expect(tr('Settings§headline'), isNot('Settings'));
+    appLang.value = 'en';
+    expect(tr('Settings§headline'), 'Settings');
+  });
 }

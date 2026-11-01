@@ -11,6 +11,7 @@ import 'core/services/pdf_service.dart';
 import 'core/services/ai_service.dart';
 import 'core/services/update_service.dart';
 import 'app.dart';
+import 'core/l10n/l10n.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ void main(List<String> args) async {
   await Hive.openBox('documents');
   await Hive.openBox('settings');
   await AppFiles.init(); // browser file storage on web, no-op on Android/Windows
+  initLanguage(); // the person's choice, Office In 1's language, or the device's
 
   // PDF double-clicked in Explorer / opened with ProDFOS on Android
   final initialFile = await OpenWith.initialFile(args);

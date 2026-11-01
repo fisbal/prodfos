@@ -6,6 +6,7 @@ import '../../core/widgets/cinematic.dart';
 import '../../core/widgets/scene3d.dart';
 import '../../core/services/ai_service.dart';
 import '../../core/services/preferences_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class DocMindSheet extends StatefulWidget {
   final String filePath;
@@ -120,7 +121,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
       );
       setState(() => _summary = result);
     } catch (e) {
-      setState(() => _summary = 'Error: $e');
+      setState(() => _summary = tr('Error: {e}', {'e': e}));
     }
   }
 
@@ -132,7 +133,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
       );
       setState(() => _insights = result);
     } catch (e) {
-      setState(() => _insights = 'Error: $e');
+      setState(() => _insights = tr('Error: {e}', {'e': e}));
     }
   }
 
@@ -144,7 +145,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
       );
       setState(() => _piiResult = result);
     } catch (e) {
-      setState(() => _piiResult = 'Error: $e');
+      setState(() => _piiResult = tr('Error: {e}', {'e': e}));
     }
   }
 
@@ -176,8 +177,8 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                 const SizedBox(height: 2),
                 Text(
                   aiService.isProcessing
-                      ? (aiService.statusMessage ?? 'Thinking…')
-                      : _isLoadingText ? 'Reading your document…' : 'Ask, summarize, analyze',
+                      ? (aiService.statusMessage ?? tr('Thinking…'))
+                      : _isLoadingText ? tr('Reading your document…') : tr('Ask, summarize, analyze'),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: AppTheme.body(12.5, color: aiService.isProcessing
                       ? const Color(0xFFA29BFE) : AppTheme.creamFaint),
@@ -196,7 +197,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             const AiOrb(size: 120, thinking: true),
             const SizedBox(height: 16),
-            Text('Reading document…', style: AppTheme.body(14, color: AppTheme.creamMuted)),
+            Text(tr('Reading document…'), style: AppTheme.body(14, color: AppTheme.creamMuted)),
           ]))),
         ] else if (_textError != null) ...[
           Expanded(child: Center(child: Padding(
@@ -212,10 +213,10 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
             unselectedLabelColor: Colors.white38,
             indicatorColor: AppTheme.brandGold,
             dividerColor: AppTheme.brandGold.withValues(alpha: 0.12),
-            tabs: const [
-              Tab(icon: Icon(Icons.chat_rounded, size: 18), text: 'Chat'),
-              Tab(icon: Icon(Icons.summarize_rounded, size: 18), text: 'Summary'),
-              Tab(icon: Icon(Icons.insights_rounded, size: 18), text: 'Insights'),
+            tabs: [
+              Tab(icon: Icon(Icons.chat_rounded, size: 18), text: tr('Chat')),
+              Tab(icon: Icon(Icons.summarize_rounded, size: 18), text: tr('Summary')),
+              Tab(icon: Icon(Icons.insights_rounded, size: 18), text: tr('Insights')),
               Tab(icon: Icon(Icons.shield_rounded, size: 18), text: 'PII'),
             ],
           ),
@@ -247,10 +248,10 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
             children: [
               const AiOrb(size: 110),
               const SizedBox(height: 16),
-              const Text('API Key Required', style: TextStyle(
+              Text(tr('API Key Required'), style: TextStyle(
                 fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 8),
-              Text('DocMind™ uses your own AI API key.\nGo to Settings to add your Anthropic or OpenAI key.',
+              Text(tr('DocMind™ uses your own AI API key.\nGo to Settings to add your Anthropic or OpenAI key.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
               const SizedBox(height: 24),
@@ -260,7 +261,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                   context.push('/settings');
                 },
                 icon: Icons.key_rounded,
-                label: 'Add my key',
+                label: tr('Add my key'),
               ),
             ],
           ),
@@ -280,14 +281,14 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const AiOrb(size: 120),
                     const SizedBox(height: 12),
-                    Text('Ask anything about this document',
+                    Text(tr('Ask anything about this document'),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
                     const SizedBox(height: 16),
                     Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                      _quickChip('What is this about?'),
-                      _quickChip('Key takeaways?'),
-                      _quickChip('Any deadlines?'),
+                      _quickChip(tr('What is this about?')),
+                      _quickChip(tr('Key takeaways?')),
+                      _quickChip(tr('Any deadlines?')),
                     ]),
                   ])))
               : ListView.builder(
@@ -298,7 +299,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                       : Align(alignment: Alignment.centerLeft, child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const AiOrb(size: 44, thinking: true),
                           const SizedBox(width: 6),
-                          Text('Thinking…', style: AppTheme.body(13, color: const Color(0xFFA29BFE))),
+                          Text(tr('Thinking…'), style: AppTheme.body(13, color: const Color(0xFFA29BFE))),
                         ])),
                 ),
         ),
@@ -327,7 +328,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                       controller: _chatController,
                       style: const TextStyle(fontSize: 14, color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'Ask about this document...',
+                        hintText: tr('Ask about this document...'),
                         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -337,7 +338,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(width: 10),
-                Key3D(icon: Icons.arrow_upward_rounded, gold: true, size: 44, tooltip: 'Send',
+                Key3D(icon: Icons.arrow_upward_rounded, gold: true, size: 44, tooltip: tr('Send'),
                     onTap: context.watch<AiService>().isProcessing ? null : _sendChat),
               ],
             ),
@@ -408,7 +409,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           Center(child: Button3D(
             onTap: context.watch<AiService>().isProcessing ? null : _generateSummary,
             icon: Icons.auto_awesome,
-            label: _summary == null ? 'Generate Summary' : 'Regenerate',
+            label: _summary == null ? tr('Generate Summary') : tr('Regenerate'),
           )),
           const SizedBox(height: 16),
           if (_summary != null)
@@ -435,7 +436,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           Center(child: Button3D(
             onTap: context.watch<AiService>().isProcessing ? null : _generateInsights,
             icon: Icons.insights_rounded,
-            label: _insights == null ? 'Extract Insights' : 'Re-analyze',
+            label: _insights == null ? tr('Extract Insights') : tr('Re-analyze'),
           )),
           const SizedBox(height: 16),
           if (_insights != null)
@@ -469,7 +470,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
             child: Row(children: [
               const Icon(Icons.shield_rounded, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text('Scans for personal data like names, emails, phone numbers, SSN, etc.',
+              Expanded(child: Text(tr('Scans for personal data like names, emails, phone numbers, SSN, etc.'),
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13))),
             ]),
           ),
@@ -477,7 +478,7 @@ class _DocMindSheetState extends State<DocMindSheet> with SingleTickerProviderSt
           Center(child: Button3D(
             onTap: context.watch<AiService>().isProcessing ? null : _scanPii,
             icon: Icons.security_rounded,
-            label: _piiResult == null ? 'Scan for PII' : 'Rescan',
+            label: _piiResult == null ? tr('Scan for PII') : tr('Rescan'),
             gold: false,
           )),
           const SizedBox(height: 16),

@@ -11,6 +11,7 @@ import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
 import '../docmind/docmind_sheet.dart';
 import '../forms/xfa_view.dart';
+import '../../core/l10n/l10n.dart';
 
 /// PDF viewer with two engines:
 ///  • Standard engine (Syncfusion) — fast reading, search, night mode, DocMind.
@@ -61,7 +62,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       });
       if (!xfa) _checkScanned(bytes);
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _errorMessage = 'Could not open this file:\n$e'; });
+      if (mounted) setState(() { _isLoading = false; _errorMessage = tr('Could not open this file:\n{e}', {'e': e}); });
     }
   }
 
@@ -87,7 +88,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       try {
         if (doc.pages.count == 0) return false;
         final text = sync_pdf.PdfTextExtractor(doc).extractText(startPageIndex: 0, endPageIndex: 0);
-        return text.contains('Please wait') && text.contains('Adobe');
+        return text.contains(tr('Please wait')) && text.contains('Adobe');
       } finally {
         doc.dispose();
       }
@@ -128,10 +129,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     context.read<DocumentManager>().addToRecent(path, fileNameOf(path));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppFiles.isWeb
-          ? 'Filled form downloaded · also in Tools → Created files'
-          : 'Filled form saved · ${fileNameOf(path)}'),
+          ? tr('Filled form downloaded · also in Tools → Created files')
+          : tr('Filled form saved · {name}', {'name': fileNameOf(path)})),
       action: AppFiles.isWeb ? null : SnackBarAction(
-        label: 'Share', textColor: AppTheme.brandGold,
+        label: tr('Share'), textColor: AppTheme.brandGold,
         onPressed: () => AppFiles.share(path)),
     ));
   }
@@ -151,7 +152,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
             if (!_formsEngine && _isScanned && !_dismissedBanner)
               _banner(Icons.document_scanner_rounded, Colors.blue,
-                  'Scanned document — text search and DocMind™ won\'t work.'),
+                  tr('Scanned document — text search and DocMind™ won\'t work.')),
 
             Expanded(child: _buildBody(prefs)),
 
@@ -201,12 +202,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
           style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
         const SizedBox(height: 20),
         Wrap(spacing: 12, runSpacing: 8, alignment: WrapAlignment.center, children: [
-          OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Go Back')),
+          OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Go Back'))),
           if (_bytes != null)
             FilledButton.icon(
               onPressed: () => setState(() { _errorMessage = null; _formsEngine = true; }),
               icon: const Icon(Icons.dynamic_form_rounded, size: 18),
-              label: const Text('Try the Forms engine'),
+              label: Text(tr('Try the Forms engine')),
             ),
         ]),
       ]),
@@ -215,8 +216,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Widget _formsBanner() => _banner(
         Icons.verified_rounded, AppTheme.brandGold,
-        'Adobe XFA form — opened with the ProDFOS Forms engine (same as Firefox). '
-        'Fill it in, then tap Save.');
+        tr('Adobe XFA form — opened with the ProDFOS Forms engine (same as Firefox). Fill it in, then tap Save.'));
 
   Widget _banner(IconData icon, Color color, String text) {
     return Container(
@@ -252,29 +252,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Row(children: [
-        Key3D(icon: Icons.arrow_back_rounded, size: 38, tooltip: 'Back',
+        Key3D(icon: Icons.arrow_back_rounded, size: 38, tooltip: tr('Back'),
           onTap: () { _saveProgress(); Navigator.of(context).pop(); }),
         const SizedBox(width: 12),
         Expanded(child: Text(_fileName, overflow: TextOverflow.ellipsis,
           style: AppTheme.body(14, weight: FontWeight.w600))),
         const SizedBox(width: 6),
         Key3D(icon: Icons.dynamic_form_rounded, size: 36, active: _formsEngine,
-          tooltip: _formsEngine ? 'Switch to standard viewer' : 'Open with Forms engine (XFA)',
+          tooltip: _formsEngine ? tr('Switch to standard viewer') : tr('Open with Forms engine (XFA)'),
           onTap: _bytes == null ? null : toggleEngine),
         if (!_formsEngine) ...[
           const SizedBox(width: 6),
           Key3D(icon: _nightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded, size: 36,
-            active: _nightMode, tooltip: 'Night mode',
+            active: _nightMode, tooltip: tr('Night mode'),
             onTap: () => setState(() => _nightMode = !_nightMode)),
         ],
         const SizedBox(width: 4),
         Tooltip(
-          message: 'DocMind™ AI',
+          message: tr('DocMind™ AI'),
           child: AiOrb(size: 44, onTap: () => DocMindSheet.show(context, widget.filePath)),
         ),
         if (!_formsEngine) ...[
           const SizedBox(width: 4),
-          Key3D(icon: Icons.edit_note_rounded, size: 36, gold: true, tooltip: 'Edit PDF',
+          Key3D(icon: Icons.edit_note_rounded, size: 36, gold: true, tooltip: tr('Edit PDF'),
             onTap: () {
               _saveProgress();
               context.push('/editor?path=${Uri.encodeComponent(widget.filePath)}');
@@ -283,7 +283,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         const SizedBox(width: 6),
         PopupMenuButton<String>(
           key: _menuKey,
-          tooltip: 'More',
+          tooltip: tr('More'),
           onSelected: (action) {
             switch (action) {
               case 'first': _controller.jumpToPage(1);
@@ -293,13 +293,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
             }
           },
           itemBuilder: (_) => [
-            if (!_formsEngine) ...const [
-              PopupMenuItem(value: 'first', child: Text('Go to First Page')),
-              PopupMenuItem(value: 'last', child: Text('Go to Last Page')),
+            if (!_formsEngine) ...[
+              PopupMenuItem(value: 'first', child: Text(tr('Go to First Page'))),
+              PopupMenuItem(value: 'last', child: Text(tr('Go to Last Page'))),
               PopupMenuDivider(),
-              PopupMenuItem(value: 'bookmark', child: Text('Bookmarks')),
+              PopupMenuItem(value: 'bookmark', child: Text(tr('Bookmarks'))),
             ],
-            PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? 'Download' : 'Share')),
+            PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? tr('Download') : tr('Share'))),
           ],
           child: Key3D(icon: Icons.more_vert_rounded, size: 36,
               onTap: () => _menuKey.currentState?.showButtonMenu()),
@@ -353,6 +353,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
     setState(() => _currentPage = d.newPageNumber); _saveProgress();
   }
   void _onFailed(PdfDocumentLoadFailedDetails d) {
-    setState(() { _isLoading = false; _errorMessage = 'Failed to load PDF:\n${d.description}'; });
+    setState(() { _isLoading = false; _errorMessage = tr('Failed to load PDF:\n{e}', {'e': d.description}); });
   }
 }

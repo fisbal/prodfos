@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class ImagesToPdfScreen extends StatefulWidget {
   const ImagesToPdfScreen({super.key});
@@ -42,7 +43,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Conversion failed: $e')),
+          SnackBar(content: Text(tr('Conversion failed: {e}', {'e': e}))),
         );
       }
     }
@@ -52,32 +53,32 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 8),
-          Text('PDF Created'),
+          Text(tr('PDF Created')),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${_images.length} image(s) converted'),
-            Text('File: ${result.fileName}'),
-            Text('Size: ${result.fileSizeFormatted}'),
+            Text(tr('{n} image(s) converted', {'n': _images.length})),
+            Text(tr('File: {name}', {'name': result.fileName})),
+            Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
             const SizedBox(height: 8),
-            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
+            Text(AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Done'))),
           TextButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
-            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
           ),
           FilledButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
-            icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
+            icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Open')),
           ),
         ],
       ),
@@ -88,7 +89,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Images to PDF'),
+        title: Text(tr('Images to PDF')),
         actions: [
           if (_images.isNotEmpty)
             Padding(
@@ -99,7 +100,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                label: Text(_isProcessing ? 'Converting...' : 'Create PDF'),
+                label: Text(_isProcessing ? tr('Converting...') : tr('Create PDF')),
               ),
             ),
         ],
@@ -114,7 +115,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
                       Icon(Icons.add_photo_alternate_rounded, size: 56,
                         color: Colors.white.withValues(alpha: 0.15)),
                       const SizedBox(height: 12),
-                      Text('No images added yet',
+                      Text(tr('No images added yet'),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
                     ],
                   ))
@@ -148,7 +149,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
                           ),
                           title: Text(img.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 14)),
-                          subtitle: Text('Page ${i + 1}',
+                          subtitle: Text(tr('Page {n}', {'n': i + 1}),
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -172,7 +173,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
               child: OutlinedButton.icon(
                 onPressed: _addImages,
                 icon: const Icon(Icons.add_photo_alternate_rounded),
-                label: const Text('Add Images'),
+                label: Text(tr('Add Images')),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.5)),

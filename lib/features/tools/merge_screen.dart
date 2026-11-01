@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class MergeScreen extends StatefulWidget {
   const MergeScreen({super.key});
@@ -34,7 +35,7 @@ class _MergeScreenState extends State<MergeScreen> {
   Future<void> _merge() async {
     if (_files.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least 2 PDFs to merge')),
+        SnackBar(content: Text(tr('Add at least 2 PDFs to merge'))),
       );
       return;
     }
@@ -53,7 +54,7 @@ class _MergeScreenState extends State<MergeScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Merge failed: $e')),
+          SnackBar(content: Text(tr('Merge failed: {e}', {'e': e}))),
         );
       }
     }
@@ -63,22 +64,22 @@ class _MergeScreenState extends State<MergeScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 24),
             SizedBox(width: 8),
-            Text('Merge Complete'),
+            Text(tr('Merge Complete')),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('File: ${result.fileName}'),
-            Text('Size: ${result.fileSizeFormatted}'),
+            Text(tr('File: {name}', {'name': result.fileName})),
+            Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
             const SizedBox(height: 8),
             Text(
-              AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
+              AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
             ),
           ],
@@ -86,7 +87,7 @@ class _MergeScreenState extends State<MergeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Done'),
+            child: Text(tr('Done')),
           ),
           TextButton.icon(
             onPressed: () {
@@ -94,7 +95,7 @@ class _MergeScreenState extends State<MergeScreen> {
               AppFiles.share(result.outputPath);
             },
             icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
-            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+            label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -102,7 +103,7 @@ class _MergeScreenState extends State<MergeScreen> {
               AppFiles.open(result.outputPath);
             },
             icon: const Icon(Icons.open_in_new, size: 18),
-            label: const Text('Open'),
+            label: Text(tr('Open')),
           ),
         ],
       ),
@@ -119,7 +120,7 @@ class _MergeScreenState extends State<MergeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Merge PDFs'),
+        title: Text(tr('Merge PDFs')),
         actions: [
           if (_files.length >= 2)
             Padding(
@@ -130,7 +131,7 @@ class _MergeScreenState extends State<MergeScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.call_merge_rounded, size: 18),
-                label: Text(_isProcessing ? 'Merging...' : 'Merge'),
+                label: Text(_isProcessing ? tr('Merging...') : tr('Merge')),
               ),
             ),
         ],
@@ -150,9 +151,9 @@ class _MergeScreenState extends State<MergeScreen> {
               children: [
                 Icon(Icons.info_outline, color: AppTheme.brandGold.withValues(alpha: 0.6), size: 20),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Add PDFs and drag to reorder. They will be combined in the order shown.',
+                    tr('Add PDFs and drag to reorder. They will be combined in the order shown.'),
                     style: TextStyle(fontSize: 13),
                   ),
                 ),
@@ -170,7 +171,7 @@ class _MergeScreenState extends State<MergeScreen> {
                         Icon(Icons.note_add_rounded, size: 56,
                           color: Colors.white.withValues(alpha: 0.15)),
                         const SizedBox(height: 12),
-                        Text('No files added yet',
+                        Text(tr('No files added yet'),
                           style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
                       ],
                     ),
@@ -224,7 +225,7 @@ class _MergeScreenState extends State<MergeScreen> {
               child: OutlinedButton.icon(
                 onPressed: _addFiles,
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Add PDF Files'),
+                label: Text(tr('Add PDF Files')),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.5)),

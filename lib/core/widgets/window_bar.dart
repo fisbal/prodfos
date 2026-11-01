@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../platform/window_actions.dart';
+import '../l10n/l10n.dart';
 
 /// The gold MartinB window bar, shared by every MartinB app:
 /// logo + name ("ProDF" white, "OS" gold) on the left,
@@ -90,11 +91,11 @@ class _WindowBarState extends State<_WindowBar> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3),
               ),
             ),
-            if (WindowActions.canMinimize) _button(Icons.remove, 'Réduire', WindowActions.minimize),
+            if (WindowActions.canMinimize) _button(Icons.remove, tr('Minimize'), WindowActions.minimize),
             if (WindowActions.canFullScreen)
               _button(_full ? Icons.fullscreen_exit : Icons.fullscreen,
-                  _full ? 'Quitter le plein écran' : 'Plein écran', _toggleFull),
-            _button(Icons.close, 'Fermer', WindowActions.close, hover: const Color(0xFFC42B1C)),
+                  _full ? tr('Exit full screen') : tr('Full screen'), _toggleFull),
+            _button(Icons.close, tr('Close'), WindowActions.close, hover: const Color(0xFFC42B1C)),
           ],
         ),
       ),

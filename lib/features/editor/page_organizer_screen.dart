@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/pdf_edit_service.dart';
+import '../../core/l10n/l10n.dart';
 
 /// Returns rebuilt PDF bytes on Apply, or null.
 class PageOrganizerScreen extends StatefulWidget {
@@ -67,7 +68,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
 
   void _delete(int i) {
     if (_entries.length == 1) {
-      _snack('A document needs at least one page.');
+      _snack(tr('A document needs at least one page.'));
       return;
     }
     setState(() { _entries.removeAt(i); _changed = true; });
@@ -86,9 +87,9 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
     try {
       await _addSource(r.files.first.bytes!, appendPages: true);
       _changed = true;
-      _snack('Added ${r.files.first.name}');
+      _snack(tr('Added {name}', {'name': r.files.first.name}));
     } catch (e) {
-      _snack('Could not read that PDF: $e');
+      _snack(tr('Could not read that PDF: {e}', {'e': e}));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -101,7 +102,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
       if (mounted) Navigator.pop(context, out);
     } catch (e) {
       setState(() => _applying = false);
-      _snack('Failed: $e');
+      _snack(tr('Failed: {e}', {'e': e}));
     }
   }
 
@@ -120,7 +121,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Organize Pages'),
+        title: Text(tr('Organize Pages')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 10),
@@ -130,7 +131,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
                   ? const SizedBox(width: 16, height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                   : const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Apply'),
+              label: Text(tr('Apply')),
             ),
           ),
         ],
@@ -144,8 +145,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
             Icon(Icons.info_outline_rounded, size: 16, color: _gold.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
             Expanded(child: Text(
-              '${_entries.length} pages · Drag to reorder. Organize pages before '
-              'filling forms — reorganizing flattens form fields.',
+              tr('{n} pages · Drag to reorder. Organize pages before filling forms — reorganizing flattens form fields.', {'n': _entries.length}),
               style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
             )),
           ]),
@@ -174,14 +174,14 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
               Expanded(child: OutlinedButton.icon(
                 onPressed: _loading ? null : _addBlank,
                 icon: const Icon(Icons.note_add_outlined, size: 18),
-                label: const Text('Blank Page'),
+                label: Text(tr('Blank Page')),
                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
               )),
               const SizedBox(width: 10),
               Expanded(child: OutlinedButton.icon(
                 onPressed: _loading ? null : _insertPdf,
                 icon: const Icon(Icons.library_add_outlined, size: 18),
-                label: const Text('Insert PDF'),
+                label: Text(tr('Insert PDF')),
                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
               )),
             ]),
@@ -225,12 +225,12 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Page ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            Text(tr('Page {n}', {'n': i + 1}), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 3),
             Text(
-              e.isBlank ? 'Blank page'
-                  : e.docIndex > 0 ? 'Inserted · p.${e.pageIndex + 1}'
-                  : 'Original p.${e.pageIndex + 1}${e.extraTurns != 0 ? ' · rotated' : ''}',
+              e.isBlank ? tr('Blank page')
+                  : e.docIndex > 0 ? tr('Inserted · p.{n}', {'n': e.pageIndex + 1})
+                  : (e.extraTurns != 0 ? tr('Original p.{n} · rotated', {'n': e.pageIndex + 1}) : tr('Original p.{n}', {'n': e.pageIndex + 1})),
               style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
             ),
             const SizedBox(height: 8),

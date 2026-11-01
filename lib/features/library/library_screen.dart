@@ -7,6 +7,7 @@ import '../../core/widgets/cinematic.dart';
 import '../../core/widgets/scene3d.dart';
 import '../../core/services/document_manager.dart';
 import '../../core/platform/app_files.dart';
+import '../../core/l10n/l10n.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -45,18 +46,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return tr('just now');
+    if (diff.inMinutes < 60) return tr('{n}m ago', {'n': diff.inMinutes});
+    if (diff.inHours < 24) return tr('{n}h ago', {'n': diff.inHours});
+    if (diff.inDays < 7) return tr('{n}d ago', {'n': diff.inDays});
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
   String get _greeting {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 12) return tr('Good morning');
+    if (h < 18) return tr('Good afternoon');
+    return tr('Good evening');
   }
 
   // ── UI ───────────────────────────────────────────────────
@@ -94,9 +95,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
               else ...[
                 SliverToBoxAdapter(child: _continueCard(dm, docs.first)),
                 if (docs.length > 1) ...[
-                  const SliverToBoxAdapter(child: Padding(
+                  SliverToBoxAdapter(child: Padding(
                     padding: EdgeInsets.fromLTRB(24, 30, 24, 12),
-                    child: Kicker('Recent'),
+                    child: Kicker(tr('Recent')),
                   )),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -115,9 +116,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         )),
       ),
       bottomNavigationBar: GlassNavBar(current: 0, items: [
-        GlassNavItem(Icons.auto_stories_rounded, 'Library', () {}),
-        GlassNavItem(Icons.widgets_rounded, 'Tools', () => context.push('/tools')),
-        GlassNavItem(Icons.tune_rounded, 'Settings', () => context.push('/settings')),
+        GlassNavItem(Icons.auto_stories_rounded, tr('Library'), () {}),
+        GlassNavItem(Icons.widgets_rounded, tr('Tools'), () => context.push('/tools')),
+        GlassNavItem(Icons.tune_rounded, tr('Settings'), () => context.push('/settings')),
       ]),
     );
   }
@@ -132,7 +133,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         const Spacer(),
         GlassIconButton(
           icon: Icons.tune_rounded,
-          tooltip: 'Settings',
+          tooltip: tr('Settings'),
           onTap: () => context.push('/settings'),
         ),
       ]),
@@ -147,7 +148,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       Positioned(
         right: -6, top: -8,
         child: Tooltip(
-          message: 'Open a PDF and ask DocMind™',
+          message: tr('Open a PDF and ask DocMind™'),
           child: AiOrb(size: 96, onTap: _openFilePicker),
         ).cinematicIn(delayMs: 400),
       ),
@@ -155,19 +156,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
         Text(_greeting, style: AppTheme.body(14, color: AppTheme.creamMuted, letterSpacing: 0.3))
             .cinematicIn(delayMs: 100),
         const SizedBox(height: 10),
-        Text('Read smarter.', style: AppTheme.display(42, height: 1.05))
-            .cinematicIn(delayMs: 200),
-        GoldText('Not harder.',
-            style: AppTheme.display(42, italic: true, weight: FontWeight.w600, height: 1.15))
+        // Leaves room for the DocMind orb on the right, and shrinks rather than running under it in longer languages.
+        Padding(
+          padding: const EdgeInsets.only(right: 100),
+          child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+              child: Text(tr('Read smarter.'), style: AppTheme.display(42, height: 1.05))),
+        ).cinematicIn(delayMs: 200),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: GoldText(tr('Not harder.'),
+                style: AppTheme.display(42, italic: true, weight: FontWeight.w600, height: 1.15)))
             .cinematicIn(delayMs: 330),
         const SizedBox(height: 14),
-        Text('Your documents, understood by DocMind™ AI.',
+        Text(tr('Your documents, understood by DocMind™ AI.'),
             style: AppTheme.body(14.5, color: AppTheme.creamFaint, height: 1.4))
             .cinematicIn(delayMs: 450),
         const SizedBox(height: 28),
         Wrap(spacing: 14, runSpacing: 14, children: [
-          Button3D(label: 'Open PDF', icon: Icons.add_rounded, onTap: _openFilePicker),
-          Button3D(label: 'Scan', icon: Icons.document_scanner_rounded, gold: false,
+          Button3D(label: tr('Open PDF'), icon: Icons.add_rounded, onTap: _openFilePicker),
+          Button3D(label: tr('Scan'), icon: Icons.document_scanner_rounded, gold: false,
               onTap: () => context.push('/tools/scan')),
         ]).cinematicIn(delayMs: 560),
       ]),
@@ -177,10 +183,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _quickTools() {
     final tools = <(Scene, String, VoidCallback)>[
-      (Scene.edit, 'Edit', _pickAndEdit),
-      (Scene.merge, 'Merge', () => context.push('/tools/merge')),
-      (Scene.split, 'Split', () => context.push('/tools/split')),
-      (Scene.tools, 'All tools', () => context.push('/tools')),
+      (Scene.edit, tr('Edit'), _pickAndEdit),
+      (Scene.merge, tr('Merge'), () => context.push('/tools/merge')),
+      (Scene.split, tr('Split'), () => context.push('/tools/split')),
+      (Scene.tools, tr('All tools'), () => context.push('/tools')),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 34, 20, 0),
@@ -199,7 +205,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 34, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(padding: EdgeInsets.only(left: 4, bottom: 12), child: Kicker('Continue reading')),
+        Padding(padding: EdgeInsets.only(left: 4, bottom: 12), child: Kicker(tr('Continue reading'))),
         GlassCard(
           gold: true,
           radius: 22,
@@ -228,7 +234,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: AppTheme.display(19, height: 1.2)),
               const SizedBox(height: 8),
-              Text('Page ${doc.lastPage} · ${_timeAgo(doc.openedAt)}',
+              Text(tr('Page {n} · {when}', {'n': doc.lastPage, 'when': _timeAgo(doc.openedAt)}),
                   style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
             ])),
             const SizedBox(width: 10),
@@ -266,12 +272,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
             Text(doc.fileName, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: AppTheme.body(14.5, weight: FontWeight.w600)),
             const SizedBox(height: 3),
-            Text('Page ${doc.lastPage} · ${_timeAgo(doc.openedAt)}',
+            Text(tr('Page {n} · {when}', {'n': doc.lastPage, 'when': _timeAgo(doc.openedAt)}),
                 style: AppTheme.body(12, color: AppTheme.creamFaint)),
           ])),
           IconButton(
             icon: Icon(Icons.close_rounded, size: 18, color: AppTheme.cream.withValues(alpha: 0.3)),
-            tooltip: 'Remove from recents',
+            tooltip: tr('Remove from recents'),
             onPressed: () => dm.removeFromRecent(doc.filePath),
           ),
         ]),
@@ -285,10 +291,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: Column(children: [
         const SizedBox(width: 170, height: 130, child: SceneView(scene: Scene.open)),
         const SizedBox(height: 22),
-        Text('Your library is quiet.',
+        Text(tr('Your library is quiet.'),
             style: AppTheme.display(24, italic: true, weight: FontWeight.w500)),
         const SizedBox(height: 8),
-        Text('Open or scan a document to begin.',
+        Text(tr('Open or scan a document to begin.'),
             style: AppTheme.body(14, color: AppTheme.creamFaint)),
       ]),
     ).cinematicIn(delayMs: 700);

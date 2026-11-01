@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class TextToPdfScreen extends StatefulWidget {
   const TextToPdfScreen({super.key});
@@ -10,14 +11,14 @@ class TextToPdfScreen extends StatefulWidget {
 }
 
 class _TextToPdfScreenState extends State<TextToPdfScreen> {
-  final _titleController = TextEditingController(text: 'My Document');
+  final _titleController = TextEditingController(text: tr('My Document'));
   final _textController = TextEditingController();
   bool _isProcessing = false;
 
   Future<void> _convert() async {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter some text first')),
+        SnackBar(content: Text(tr('Enter some text first'))),
       );
       return;
     }
@@ -33,31 +34,31 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Row(children: [
+            title: Row(children: [
               Icon(Icons.check_circle, color: Colors.green, size: 24),
               SizedBox(width: 8),
-              Text('PDF Created'),
+              Text(tr('PDF Created')),
             ]),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('File: ${result.fileName}'),
-                Text('Size: ${result.fileSizeFormatted}'),
+                Text(tr('File: {name}', {'name': result.fileName})),
+                Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
                 const SizedBox(height: 8),
-                Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
+                Text(AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Done'))),
               TextButton.icon(
                 onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
-                icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+                icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
               ),
               FilledButton.icon(
                 onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
-                icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
+                icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Open')),
               ),
             ],
           ),
@@ -67,7 +68,7 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          SnackBar(content: Text(tr('Failed: {e}', {'e': e}))),
         );
       }
     }
@@ -77,7 +78,7 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Text to PDF'),
+        title: Text(tr('Text to PDF')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -87,7 +88,7 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   ? const SizedBox(width: 16, height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                   : const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: Text(_isProcessing ? 'Creating...' : 'Create PDF'),
+              label: Text(_isProcessing ? tr('Creating...') : tr('Create PDF')),
             ),
           ),
         ],
@@ -98,8 +99,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Document Title',
+              decoration: InputDecoration(
+                labelText: tr('Document Title'),
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.title_rounded),
               ),
@@ -111,8 +112,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                 maxLines: null,
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  hintText: 'Type or paste your text here...',
+                decoration: InputDecoration(
+                  hintText: tr('Type or paste your text here...'),
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),

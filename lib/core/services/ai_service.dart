@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
 import '../platform/app_files.dart';
+import '../l10n/l10n.dart';
 
 /// DocMind™ AI Engine — sends PDF text to Anthropic/OpenAI for analysis.
 class AiService extends ChangeNotifier {
@@ -31,7 +32,7 @@ class AiService extends ChangeNotifier {
 
     final result = buffer.toString();
     if (result.trim().isEmpty) {
-      throw Exception('No text found in this PDF. It may be a scanned image.');
+      throw Exception(tr('No text found in this PDF. It may be a scanned image.'));
     }
     return result;
   }
@@ -44,7 +45,7 @@ class AiService extends ChangeNotifier {
     required String provider, // 'anthropic' or 'openai'
     List<Map<String, String>>? chatHistory,
   }) async {
-    _setStatus('Thinking...');
+    _setStatus(tr('Thinking...'));
     try {
       final systemPrompt = '''You are DocMind™, an intelligent document assistant built into ProDFOS.
 You have access to the full text of the user's PDF document.
@@ -80,7 +81,7 @@ Format your response with clear structure.''';
     required String apiKey,
     required String provider,
   }) async {
-    _setStatus('Generating summary...');
+    _setStatus(tr('Generating summary...'));
     try {
       final styleInstructions = {
         'executive': 'Write a concise executive summary. Focus on key findings, decisions, and action items. Use bullet points. Keep it under 300 words.',
@@ -111,7 +112,7 @@ Format your response with clear structure.''';
     required String apiKey,
     required String provider,
   }) async {
-    _setStatus('Analyzing document...');
+    _setStatus(tr('Analyzing document...'));
     try {
       final result = await _callApi(
         systemPrompt: 'You are DocMind™, a document analysis AI.',
@@ -145,7 +146,7 @@ $documentText'''},
     required String apiKey,
     required String provider,
   }) async {
-    _setStatus('Scanning for PII...');
+    _setStatus(tr('Scanning for PII...'));
     try {
       final result = await _callApi(
         systemPrompt: 'You are DocMind™, a privacy analysis AI.',
@@ -192,15 +193,18 @@ $documentText'''},
     required String provider,
   }) async {
     if (apiKey.isEmpty) {
-      throw Exception('No API key set. Go to Settings to add your Anthropic or OpenAI key.');
+      throw Exception(tr('No API key set. Go to Settings to add your Anthropic or OpenAI key.'));
     }
 
     if (provider == 'anthropic') {
-      return _callAnthropic(systemPrompt, messages, apiKey);
+      return _callAnthropic(_inLanguage(systemPrompt), messages, apiKey);
     } else {
-      return _callOpenAI(systemPrompt, messages, apiKey);
+      return _callOpenAI(_inLanguage(systemPrompt), messages, apiKey);
     }
   }
+
+  /// DocMind answers in the language ProDFOS is shown in, whatever the document's language.
+  String _inLanguage(String system) => '$system\n\nAlways answer in ${langEnglishName()}.';
 
   Future<String> _callAnthropic(String system, List<Map<String, String>> messages, String apiKey) async {
     // Trim any whitespace/newlines from key

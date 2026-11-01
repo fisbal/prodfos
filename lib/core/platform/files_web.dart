@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:web/web.dart' as web;
 import 'stored_file.dart';
+import '../l10n/l10n.dart';
 
 /// Web implementation — files live inside the browser.
 ///
@@ -52,7 +53,7 @@ class AppFiles {
 
   static Future<Uint8List> readBytes(String path) async {
     final b = _get(path);
-    if (b == null) throw Exception('File is no longer available in this browser: ${fileNameOf(path)}');
+    if (b == null) throw Exception(tr('File is no longer available in this browser: {name}', {'name': fileNameOf(path)}));
     return b;
   }
 

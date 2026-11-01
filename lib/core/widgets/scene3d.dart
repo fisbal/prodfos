@@ -205,6 +205,12 @@ class SceneTile extends StatelessWidget {
     this.large = false,
   });
 
+  /// Smaller type for a long single word (German "Zusammenfügen"), so it is never broken in the middle.
+  static double _bigSize(String label) {
+    final longest = label.split(RegExp(r'\s+')).fold<int>(0, (m, w) => w.length > m ? w.length : m);
+    return longest > 11 ? 20 * 11 / longest : 20;
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = large ? 22.0 : 18.0;
@@ -266,13 +272,15 @@ class SceneTile extends StatelessWidget {
                     child: SceneView(scene: scene, accent: accent, parallax: tilt),
                   ),
                   SizedBox(height: large ? 14 : 6),
-                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: large
-                          ? AppTheme.display(20, height: 1.15)
-                          : AppTheme.body(11.5, weight: FontWeight.w600, color: AppTheme.cream.withValues(alpha: 0.85))),
+                  // Big tiles sit in rows that measure their height first (no LayoutBuilder there): two lines are enough.
+                  if (large)
+                    Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTheme.display(_bigSize(label), height: 1.15))
+                  else
+                    FitLabel(label, textAlign: TextAlign.center,
+                        style: AppTheme.body(11.5, weight: FontWeight.w600, color: AppTheme.cream.withValues(alpha: 0.85))),
                   if (subtitle != null) ...[
                     const SizedBox(height: 5),
-                    Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    Text(subtitle!, maxLines: 3, overflow: TextOverflow.ellipsis,
                         style: AppTheme.body(12, color: AppTheme.creamFaint, height: 1.35)),
                   ],
                 ],
@@ -282,6 +290,61 @@ class SceneTile extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// A label that is never cut: it wraps on two lines, and shrinks when one word is wider than the
+/// space (long German or French words like "Zusammenführen"), instead of ending in "…".
+class FitLabel extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  final TextAlign textAlign;
+  const FitLabel(this.text, {super.key, required this.style, this.textAlign = TextAlign.start});
+
+  @override
+  State<FitLabel> createState() => _FitLabelState();
+}
+
+class _FitLabelState extends State<FitLabel> {
+  // Measured again once the app's fonts have loaded (they are wider than the fallback font).
+  void _fontsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    PaintingBinding.instance.systemFonts.addListener(_fontsChanged);
+  }
+
+  @override
+  void dispose() {
+    PaintingBinding.instance.systemFonts.removeListener(_fontsChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = widget.style;
+    return LayoutBuilder(builder: (context, c) {
+      var size = style.fontSize ?? 14;
+      if (c.maxWidth.isFinite) {
+        final scaler = MediaQuery.textScalerOf(context);
+        var w = 0.0;
+        for (final word in widget.text.split(RegExp(r'\s+'))) {
+          final tp = TextPainter(
+              text: TextSpan(text: word, style: style),
+              textDirection: Directionality.of(context), textScaler: scaler, maxLines: 1)
+            ..layout();
+          if (tp.width > w) w = tp.width;
+          tp.dispose();
+        }
+        // A little margin so a word that only just fits is never broken in the middle.
+        if (w > c.maxWidth * 0.88) size = (size * c.maxWidth * 0.88 / w).clamp(size * 0.5, size);
+      }
+      return Text(widget.text, maxLines: 2, overflow: TextOverflow.fade, softWrap: true,
+          textAlign: widget.textAlign, style: style.copyWith(fontSize: size));
+    });
   }
 }
 

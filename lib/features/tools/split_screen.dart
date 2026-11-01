@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});
@@ -43,7 +44,7 @@ class _SplitScreenState extends State<SplitScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load: $e')),
+          SnackBar(content: Text(tr('Failed to load: {e}', {'e': e}))),
         );
       }
     }
@@ -80,7 +81,7 @@ class _SplitScreenState extends State<SplitScreen> {
     final pages = _getSelectedPages();
     if (pages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one page')),
+        SnackBar(content: Text(tr('Select at least one page'))),
       );
       return;
     }
@@ -94,7 +95,7 @@ class _SplitScreenState extends State<SplitScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Split failed: $e')),
+          SnackBar(content: Text(tr('Split failed: {e}', {'e': e}))),
         );
       }
     }
@@ -104,34 +105,34 @@ class _SplitScreenState extends State<SplitScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 24),
             SizedBox(width: 8),
-            Text('Split Complete'),
+            Text(tr('Split Complete')),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Extracted $pageCount page(s)'),
-            Text('File: ${result.fileName}'),
-            Text('Size: ${result.fileSizeFormatted}'),
+            Text(tr('Extracted {n} page(s)', {'n': pageCount})),
+            Text(tr('File: {name}', {'name': result.fileName})),
+            Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
             const SizedBox(height: 8),
-            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
+            Text(AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Done'))),
           TextButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
-            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+            icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18), label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
           ),
           FilledButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
-            icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
+            icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Open')),
           ),
         ],
       ),
@@ -142,7 +143,7 @@ class _SplitScreenState extends State<SplitScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Split PDF'),
+        title: Text(tr('Split PDF')),
         actions: [
           if (_filePath != null && _getSelectedPages().isNotEmpty)
             Padding(
@@ -153,7 +154,7 @@ class _SplitScreenState extends State<SplitScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.content_cut_rounded, size: 18),
-                label: Text(_isProcessing ? 'Splitting...' : 'Extract ${_getSelectedPages().length} pages'),
+                label: Text(_isProcessing ? tr('Splitting...') : tr('Extract {n} pages', {'n': _getSelectedPages().length})),
               ),
             ),
         ],
@@ -169,12 +170,12 @@ class _SplitScreenState extends State<SplitScreen> {
         children: [
           Icon(Icons.content_cut_rounded, size: 56, color: Colors.white.withValues(alpha: 0.15)),
           const SizedBox(height: 16),
-          Text('Select a PDF to split', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+          Text(tr('Select a PDF to split'), style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _isProcessing ? null : _pickFile,
             icon: const Icon(Icons.file_open_rounded, size: 18),
-            label: const Text('Choose PDF'),
+            label: Text(tr('Choose PDF')),
           ),
         ],
       ),
@@ -202,12 +203,12 @@ class _SplitScreenState extends State<SplitScreen> {
                   children: [
                     Text(_fileName ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('$_totalPages pages', style: TextStyle(
+                    Text(tr('{n} pages', {'n': _totalPages}), style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.4), fontSize: 13)),
                   ],
                 ),
               ),
-              TextButton(onPressed: _pickFile, child: const Text('Change')),
+              TextButton(onPressed: _pickFile, child: Text(tr('Change'))),
             ],
           ),
         ),
@@ -217,9 +218,9 @@ class _SplitScreenState extends State<SplitScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              _modeChip('Pick Pages', 'pick'),
+              _modeChip(tr('Pick Pages'), 'pick'),
               const SizedBox(width: 8),
-              _modeChip('Page Range', 'range'),
+              _modeChip(tr('Page Range'), 'range'),
             ],
           ),
         ),
@@ -298,22 +299,22 @@ class _SplitScreenState extends State<SplitScreen> {
         children: [
           TextField(
             controller: _rangeController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'e.g. 1-3, 5, 8-10',
-              labelText: 'Page range',
+              labelText: tr('Page range'),
               border: OutlineInputBorder(),
             ),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
           Text(
-            'Use commas for individual pages, dashes for ranges.\nExample: 1-3, 5, 8-10 extracts pages 1, 2, 3, 5, 8, 9, 10',
+            tr('Use commas for individual pages, dashes for ranges.\nExample: 1-3, 5, 8-10 extracts pages 1, 2, 3, 5, 8, 9, 10'),
             style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
           ),
           if (_rangeController.text.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              'Will extract: ${_parseRange(_rangeController.text, _totalPages).join(", ")}',
+              tr('Will extract: {list}', {'list': _parseRange(_rangeController.text, _totalPages).join(', ')}),
               style: TextStyle(color: AppTheme.brandGold.withValues(alpha: 0.7), fontSize: 13),
             ),
           ],

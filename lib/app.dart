@@ -18,6 +18,7 @@ import 'features/tools/images_to_pdf_screen.dart';
 import 'features/tools/text_to_pdf_screen.dart';
 import 'features/tools/scan_to_pdf_screen.dart';
 import 'features/editor/editor_screen.dart';
+import 'core/l10n/l10n.dart';
 
 class ProDFOSApp extends StatefulWidget {
   /// A PDF the app was launched with ("Open with ProDFOS"), if any.
@@ -73,6 +74,20 @@ class _ProDFOSAppState extends State<ProDFOSApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openExternal(first));
     }
     OpenWith.listen(_openExternal);
+    appLang.addListener(_languageChanged);
+  }
+
+  @override
+  void dispose() {
+    appLang.removeListener(_languageChanged);
+    super.dispose();
+  }
+
+  /// Every screen, open or not, shows its texts in the new language at once.
+  void _languageChanged() {
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) rebuildAll(context); });
   }
 
   /// Opens a PDF handed over by Windows Explorer / Android "Open with".
