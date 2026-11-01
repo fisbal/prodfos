@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../platform/app_files.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sync_pdf;
+import '../l10n/l10n.dart';
 
 /// Result of a PDF operation — holds output path and metadata.
 class PdfResult {
@@ -46,13 +47,13 @@ class PdfService extends ChangeNotifier {
   // MERGE — Combine multiple PDFs into one
   // ══════════════════════════════════════════════════════════════════
   Future<PdfResult> mergePdfs(List<String> filePaths) async {
-    _setStatus('Merging ${filePaths.length} PDFs...');
+    _setStatus(tr('Merging {n} PDFs...', {'n': filePaths.length}));
 
     try {
       final mergedDoc = sync_pdf.PdfDocument();
 
       for (int i = 0; i < filePaths.length; i++) {
-        _setStatus('Processing file ${i + 1} of ${filePaths.length}...');
+        _setStatus(tr('Processing file {i} of {n}...', {'i': i + 1, 'n': filePaths.length}));
         final bytes = await AppFiles.readBytes(filePaths[i]);
         final sourceDoc = sync_pdf.PdfDocument(inputBytes: bytes);
 
@@ -89,7 +90,7 @@ class PdfService extends ChangeNotifier {
       return result;
     } catch (e) {
       _clearStatus();
-      throw Exception('Merge failed: $e');
+      throw Exception(tr('Merge failed: {e}', {'e': e}));
     }
   }
 
@@ -97,7 +98,7 @@ class PdfService extends ChangeNotifier {
   // SPLIT — Extract specific pages from a PDF
   // ══════════════════════════════════════════════════════════════════
   Future<PdfResult> splitPdf(String filePath, List<int> pageNumbers) async {
-    _setStatus('Splitting PDF...');
+    _setStatus(tr('Splitting PDF...'));
 
     try {
       final bytes = await AppFiles.readBytes(filePath);
@@ -106,7 +107,7 @@ class PdfService extends ChangeNotifier {
 
       for (final pageNum in pageNumbers) {
         if (pageNum >= 1 && pageNum <= sourceDoc.pages.count) {
-          _setStatus('Extracting page $pageNum...');
+          _setStatus(tr('Extracting page {n}...', {'n': pageNum}));
           final template = sourceDoc.pages[pageNum - 1].createTemplate();
           final pageSize = sourceDoc.pages[pageNum - 1].size;
           final newPage = newDoc.pages.add();
@@ -134,7 +135,7 @@ class PdfService extends ChangeNotifier {
       return result;
     } catch (e) {
       _clearStatus();
-      throw Exception('Split failed: $e');
+      throw Exception(tr('Split failed: {e}', {'e': e}));
     }
   }
 
@@ -151,7 +152,7 @@ class PdfService extends ChangeNotifier {
   // EXTRACT TEXT — Pull text from a PDF
   // ══════════════════════════════════════════════════════════════════
   Future<PdfResult> extractText(String filePath) async {
-    _setStatus('Extracting text...');
+    _setStatus(tr('Extracting text...'));
 
     try {
       final bytes = await AppFiles.readBytes(filePath);
@@ -159,7 +160,7 @@ class PdfService extends ChangeNotifier {
       final buffer = StringBuffer();
 
       for (int i = 0; i < doc.pages.count; i++) {
-        _setStatus('Reading page ${i + 1} of ${doc.pages.count}...');
+        _setStatus(tr('Reading page {i} of {n}...', {'i': i + 1, 'n': doc.pages.count}));
         final extractor = sync_pdf.PdfTextExtractor(doc);
         final text = extractor.extractText(startPageIndex: i, endPageIndex: i);
         if (text.isNotEmpty) {
@@ -189,7 +190,7 @@ class PdfService extends ChangeNotifier {
       return result;
     } catch (e) {
       _clearStatus();
-      throw Exception('Text extraction failed: $e');
+      throw Exception(tr('Text extraction failed: {e}', {'e': e}));
     }
   }
 
@@ -197,13 +198,13 @@ class PdfService extends ChangeNotifier {
   // IMAGE TO PDF — Create PDF from images
   // ══════════════════════════════════════════════════════════════════
   Future<PdfResult> imagesToPdf(List<String> imagePaths) async {
-    _setStatus('Creating PDF from ${imagePaths.length} images...');
+    _setStatus(tr('Creating PDF from {n} images...', {'n': imagePaths.length}));
 
     try {
       final doc = sync_pdf.PdfDocument();
 
       for (int i = 0; i < imagePaths.length; i++) {
-        _setStatus('Adding image ${i + 1} of ${imagePaths.length}...');
+        _setStatus(tr('Adding image {i} of {n}...', {'i': i + 1, 'n': imagePaths.length}));
         // Original bytes are embedded as-is — no re-compression
         final imageBytes = await AppFiles.readBytes(imagePaths[i]);
         final image = sync_pdf.PdfBitmap(imageBytes);
@@ -256,7 +257,7 @@ class PdfService extends ChangeNotifier {
       return result;
     } catch (e) {
       _clearStatus();
-      throw Exception('Image to PDF failed: $e');
+      throw Exception(tr('Image to PDF failed: {e}', {'e': e}));
     }
   }
 
@@ -264,7 +265,7 @@ class PdfService extends ChangeNotifier {
   // TEXT TO PDF — Create PDF from plain text
   // ══════════════════════════════════════════════════════════════════
   Future<PdfResult> textToPdf(String textContent, {String title = 'Document'}) async {
-    _setStatus('Creating PDF...');
+    _setStatus(tr('Creating PDF...'));
 
     try {
       final doc = sync_pdf.PdfDocument();
@@ -309,7 +310,7 @@ class PdfService extends ChangeNotifier {
       return result;
     } catch (e) {
       _clearStatus();
-      throw Exception('Text to PDF failed: $e');
+      throw Exception(tr('Text to PDF failed: {e}', {'e': e}));
     }
   }
 

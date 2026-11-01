@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/l10n/l10n.dart';
 
 class ExtractTextScreen extends StatefulWidget {
   const ExtractTextScreen({super.key});
@@ -48,7 +49,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Extraction failed: $e')),
+          SnackBar(content: Text(tr('Extraction failed: {e}', {'e': e}))),
         );
       }
     }
@@ -57,7 +58,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Extract Text')),
+      appBar: AppBar(title: Text(tr('Extract Text'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -78,7 +79,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                       FilledButton.icon(
                         onPressed: _pickFile,
                         icon: const Icon(Icons.file_open_rounded, size: 18),
-                        label: const Text('Choose PDF'),
+                        label: Text(tr('Choose PDF')),
                       ),
                     ])
                   : Row(children: [
@@ -88,7 +89,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                       Expanded(child: Text(_fileName ?? '', maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600))),
-                      TextButton(onPressed: _pickFile, child: const Text('Change')),
+                      TextButton(onPressed: _pickFile, child: Text(tr('Change'))),
                     ]),
             ),
             const SizedBox(height: 16),
@@ -100,7 +101,7 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.text_snippet_rounded, size: 18),
-                label: Text(_isProcessing ? 'Extracting...' : 'Extract Text'),
+                label: Text(_isProcessing ? tr('Extracting...') : tr('Extract Text')),
                 style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
               ),
 
@@ -115,10 +116,10 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(children: [
+                    Row(children: [
                       Icon(Icons.check_circle, color: Colors.green, size: 20),
                       SizedBox(width: 8),
-                      Text('Text Extracted', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text(tr('Text Extracted'), style: TextStyle(fontWeight: FontWeight.w700)),
                     ]),
                     const SizedBox(height: 8),
                     Text('${_result!.fileName} • ${_result!.fileSizeFormatted}',
@@ -127,19 +128,19 @@ class _ExtractTextScreenState extends State<ExtractTextScreen> {
                     Row(children: [
                       OutlinedButton.icon(
                         onPressed: () => AppFiles.share(_result!.outputPath),
-                        icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 16), label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+                        icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 16), label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
                       ),
                       const SizedBox(width: 8),
                       FilledButton.icon(
                         onPressed: () => AppFiles.open(_result!.outputPath),
-                        icon: const Icon(Icons.open_in_new, size: 16), label: const Text('Open'),
+                        icon: const Icon(Icons.open_in_new, size: 16), label: Text(tr('Open')),
                       ),
                     ]),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Preview:', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(tr('Preview:'), style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Expanded(
                 child: Container(

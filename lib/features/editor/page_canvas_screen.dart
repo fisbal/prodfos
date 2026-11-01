@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/pdf_edit_service.dart';
 import 'signature_pad_sheet.dart';
+import '../../core/l10n/l10n.dart';
 
 enum CanvasTool { pen, marker, text, image, stamp, signature, note, replace }
 
@@ -62,7 +63,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
       if (info.rotated) {
         setState(() {
           _loading = false;
-          _error = 'This page is rotated.\nOpen Pages and turn it upright before editing it.';
+          _error = tr('This page is rotated.\nOpen Pages and turn it upright before editing it.');
         });
         return;
       }
@@ -72,7 +73,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
       }
       setState(() { _png = png; _pageSize = info.size; _loading = false; });
     } catch (e) {
-      setState(() { _loading = false; _error = 'Could not open this page:\n$e'; });
+      setState(() { _loading = false; _error = tr('Could not open this page:\n{e}', {'e': e}); });
     }
   }
 
@@ -106,7 +107,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     } catch (e) {
       setState(() => _applying = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Apply failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Apply failed: {e}', {'e': e}))));
       }
     }
   }
@@ -116,11 +117,11 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     final r = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Discard changes?'),
-        content: const Text('Your edits on this page will be lost.'),
+        title: Text(tr('Discard changes?')),
+        content: Text(tr('Your edits on this page will be lost.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Keep editing'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Discard'))),
         ],
       ),
     );
@@ -178,7 +179,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
       case CanvasTool.replace:
         final hit = PdfEditService.findLineAt(widget.bytes, widget.pageIndex, p);
         if (hit == null) {
-          _snack('No text found here — tap directly on a line of text.');
+          _snack(tr('No text found here — tap directly on a line of text.'));
           return;
         }
         final newText = await _replaceDialog(hit.text);
@@ -239,7 +240,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
               if (await _confirmDiscard() && mounted) Navigator.of(this.context).pop();
             },
           ),
-          title: Text('Page ${widget.pageIndex + 1}'),
+          title: Text(tr('Page {n}', {'n': widget.pageIndex + 1})),
           actions: [
             IconButton(
               icon: const Icon(Icons.undo_rounded),
@@ -253,7 +254,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.check_rounded, size: 18),
-                label: const Text('Apply'),
+                label: Text(tr('Apply')),
               ),
             ),
           ],
@@ -435,7 +436,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
         Icon(Icons.open_with_rounded, size: 18, color: _gold.withValues(alpha: 0.8)),
         const SizedBox(width: 8),
         Expanded(child: Text(
-          it.type == EditItemType.replace ? 'Replacement text' : 'Drag to move',
+          it.type == EditItemType.replace ? tr('Replacement text') : tr('Drag to move'),
           style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)))),
         if (resizable) ...[
           _roundBtn(Icons.remove_rounded, () => _resizeSelected(0.87)),
@@ -486,15 +487,15 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
   }
 
   Widget _hint() {
-    const hints = {
-      CanvasTool.pen: 'Draw with your finger',
-      CanvasTool.marker: 'Swipe over text to highlight it',
-      CanvasTool.text: 'Tap where the text should go',
-      CanvasTool.image: 'Tap where the image should go',
-      CanvasTool.stamp: 'Tap where the stamp should go',
-      CanvasTool.signature: 'Tap where you want to sign',
-      CanvasTool.note: 'Tap to pin a note',
-      CanvasTool.replace: 'Tap a line of text to rewrite it',
+    final hints = {
+      CanvasTool.pen: tr('Draw with your finger'),
+      CanvasTool.marker: tr('Swipe over text to highlight it'),
+      CanvasTool.text: tr('Tap where the text should go'),
+      CanvasTool.image: tr('Tap where the image should go'),
+      CanvasTool.stamp: tr('Tap where the stamp should go'),
+      CanvasTool.signature: tr('Tap where you want to sign'),
+      CanvasTool.note: tr('Tap to pin a note'),
+      CanvasTool.replace: tr('Tap a line of text to rewrite it'),
     };
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 2),
@@ -504,15 +505,15 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
   }
 
   Widget _toolBar() {
-    const tools = [
-      (CanvasTool.pen, Icons.edit_rounded, 'Pen'),
-      (CanvasTool.marker, Icons.brush_rounded, 'Marker'),
-      (CanvasTool.text, Icons.text_fields_rounded, 'Text'),
-      (CanvasTool.image, Icons.image_rounded, 'Image'),
-      (CanvasTool.stamp, Icons.approval_rounded, 'Stamp'),
-      (CanvasTool.signature, Icons.draw_rounded, 'Sign'),
-      (CanvasTool.note, Icons.sticky_note_2_rounded, 'Note'),
-      (CanvasTool.replace, Icons.find_replace_rounded, 'Replace'),
+    final tools = [
+      (CanvasTool.pen, Icons.edit_rounded, tr('Pen')),
+      (CanvasTool.marker, Icons.brush_rounded, tr('Marker')),
+      (CanvasTool.text, Icons.text_fields_rounded, tr('Text')),
+      (CanvasTool.image, Icons.image_rounded, tr('Image')),
+      (CanvasTool.stamp, Icons.approval_rounded, tr('Stamp')),
+      (CanvasTool.signature, Icons.draw_rounded, tr('Sign')),
+      (CanvasTool.note, Icons.sticky_note_2_rounded, tr('Note')),
+      (CanvasTool.replace, Icons.find_replace_rounded, tr('Replace')),
     ];
     return SafeArea(
       top: false,
@@ -578,10 +579,10 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     return showDialog<({String text, double size, Color color})>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
-        title: const Text('Add Text'),
+        title: Text(tr('Add Text')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: ctrl, autofocus: true, maxLines: 4, minLines: 1,
-            decoration: const InputDecoration(hintText: 'Type your text…', border: OutlineInputBorder())),
+            decoration: InputDecoration(hintText: tr('Type your text…'), border: OutlineInputBorder())),
           const SizedBox(height: 14),
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final s in sizes)
@@ -603,13 +604,13 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
           ]),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
               if (ctrl.text.trim().isEmpty) return;
               Navigator.pop(ctx, (text: ctrl.text, size: size, color: color));
             },
-            child: const Text('Add'),
+            child: Text(tr('Add')),
           ),
         ],
       )),
@@ -621,12 +622,12 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sticky Note'),
+        title: Text(tr('Sticky Note')),
         content: TextField(controller: ctrl, autofocus: true, maxLines: 5, minLines: 2,
-          decoration: const InputDecoration(hintText: 'Write your note…', border: OutlineInputBorder())),
+          decoration: InputDecoration(hintText: tr('Write your note…'), border: OutlineInputBorder())),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Pin note')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(tr('Pin note'))),
         ],
       ),
     );
@@ -637,21 +638,21 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Replace Text'),
+        title: Text(tr('Replace Text')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Original', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),
+          Text(tr('Original'), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45))),
           const SizedBox(height: 4),
           Text(original, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
           const SizedBox(height: 14),
           TextField(controller: ctrl, autofocus: true, maxLines: 3, minLines: 1,
-            decoration: const InputDecoration(labelText: 'New text', border: OutlineInputBorder())),
+            decoration: InputDecoration(labelText: tr('New text'), border: OutlineInputBorder())),
           const SizedBox(height: 10),
-          Text('The original line is covered and your text is written in a matching font.',
+          Text(tr('The original line is covered and your text is written in a matching font.'),
             style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Replace')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(tr('Replace'))),
         ],
       ),
     );
@@ -662,14 +663,14 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
     final date = '${today.day.toString().padLeft(2, '0')}/'
         '${today.month.toString().padLeft(2, '0')}/${today.year}';
     final stamps = [
-      ('APPROVED', const Color(0xFF2E7D32)),
-      ('PAID', const Color(0xFF1565C0)),
-      ('RECEIVED', const Color(0xFF00838F)),
-      ('CONFIDENTIAL', const Color(0xFFC62828)),
-      ('REJECTED', const Color(0xFFC62828)),
-      ('DRAFT', const Color(0xFF616161)),
-      ('SIGNED $date', const Color(0xFF1A3A8F)),
-      ('COPY', const Color(0xFF6A1B9A)),
+      (tr('APPROVED'), const Color(0xFF2E7D32)),
+      (tr('PAID'), const Color(0xFF1565C0)),
+      (tr('RECEIVED'), const Color(0xFF00838F)),
+      (tr('CONFIDENTIAL'), const Color(0xFFC62828)),
+      (tr('REJECTED'), const Color(0xFFC62828)),
+      (tr('DRAFT'), const Color(0xFF616161)),
+      (tr('SIGNED {date}', {'date': date}), const Color(0xFF1A3A8F)),
+      (tr('COPY'), const Color(0xFF6A1B9A)),
     ];
     return showModalBottomSheet<({String label, Color color})>(
       context: context,
@@ -681,7 +682,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
           Container(width: 40, height: 4,
             decoration: BoxDecoration(color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 14),
-          const Text('Choose a Stamp', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          Text(tr('Choose a Stamp'), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
           GridView.count(
             shrinkWrap: true, crossAxisCount: 2, childAspectRatio: 3.0,

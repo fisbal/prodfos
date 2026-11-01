@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
+import '../l10n/l10n.dart';
 
 /// Scan enhancement engine — runs inside a background isolate via compute().
 /// Works on raw bytes so it runs the same on Android, Windows and Web.
@@ -10,7 +11,7 @@ import 'package:image/image.dart' as img;
 /// returns JPEG bytes (quality 96)
 Uint8List enhanceImageBytes(Map<String, Object> args) {
   var image = img.decodeImage(args['bytes'] as Uint8List);
-  if (image == null) throw Exception('Cannot decode image');
+  if (image == null) throw Exception(tr('Cannot decode image'));
 
   // Respect camera rotation (EXIF) so pages are never sideways
   image = img.bakeOrientation(image);

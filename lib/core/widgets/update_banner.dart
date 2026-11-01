@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
+import '../l10n/l10n.dart';
 
 /// A small card at the bottom of every page when a newer ProDFOS is out: Update now / Later.
 class UpdateBanner extends StatefulWidget {
@@ -49,16 +50,16 @@ class _UpdateBannerState extends State<UpdateBanner> {
                       const Icon(Icons.system_update_rounded, color: AppTheme.brandGold),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text('ProDFOS $version is ready',
+                        child: Text(tr('ProDFOS {v} is ready', {'v': version}),
                             style: AppTheme.body(14, weight: FontWeight.w600)),
                       ),
                       TextButton(
                         onPressed: updates.installing ? null : updates.dismiss,
-                        child: Text('Later', style: AppTheme.body(13, color: AppTheme.creamMuted)),
+                        child: Text(tr('Later'), style: AppTheme.body(13, color: AppTheme.creamMuted)),
                       ),
                       FilledButton(
                         onPressed: updates.installing ? null : () => updates.install(),
-                        child: Text(updates.installing ? 'Installing…' : 'Update now'),
+                        child: Text(updates.installing ? tr('Installing…') : tr('Update now')),
                       ),
                     ]),
                   ),

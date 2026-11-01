@@ -9,6 +9,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/preferences_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/document_manager.dart';
+import '../../core/l10n/l10n.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -40,10 +41,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 56),
         children: [
           Row(children: [
-            Key3D(icon: Icons.arrow_back_rounded, tooltip: 'Back', onTap: () => Navigator.of(context).pop()),
+            Key3D(icon: Icons.arrow_back_rounded, tooltip: tr('Back'), onTap: () => Navigator.of(context).pop()),
           ]),
           const SizedBox(height: 22),
-          const Padding(padding: EdgeInsets.only(left: 6), child: Kicker('Make it yours'))
+          Padding(padding: EdgeInsets.only(left: 6), child: Kicker(tr('Make it yours')))
               .cinematicIn(delayMs: 60, blur: false),
           const SizedBox(height: 10),
           Padding(
@@ -51,76 +52,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Shrinks on narrow phones and with large system text instead of running off the screen.
             child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Row(
               mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-              Text('Your ', style: AppTheme.display(40)),
-              GoldText('Settings', style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
+              Text(tr('Your §headline'), style: AppTheme.display(40)),
+              GoldText(tr('Settings§headline'), style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
             ])),
           ).cinematicIn(delayMs: 140),
           const SizedBox(height: 28),
 
+          // ── LANGUAGE ─────────────────────────────────────
+          _group(tr('Language'), [
+            _SettingsTile(
+              icon: Icons.translate_rounded,
+              title: tr('Language'),
+              subtitle: savedLangChoice().isEmpty ? '${tr('Automatic')} · ${langNames[appLang.value]}' : langNames[appLang.value] ?? 'English',
+              onTap: () => _showLanguagePicker(context),
+            ),
+          ]),
+
           // ── READING ──────────────────────────────────────
-          _group('Reading', [
+          _group(tr('Reading'), [
             _SettingsTile(
               icon: Icons.dark_mode_rounded,
-              title: 'Night Mode',
-              subtitle: 'Invert colors for comfortable reading in the dark',
+              title: tr('Night Mode'),
+              subtitle: tr('Invert colors for comfortable reading in the dark'),
               trailing: Switch(value: prefs.nightMode, onChanged: (v) => prefs.nightMode = v,
                   activeColor: AppTheme.brandGold),
             ),
             _SettingsTile(
               icon: Icons.bookmark_rounded,
-              title: 'Remember Position',
-              subtitle: 'Resume reading where you left off',
+              title: tr('Remember Position'),
+              subtitle: tr('Resume reading where you left off'),
               trailing: Switch(value: prefs.rememberPosition, onChanged: (v) => prefs.rememberPosition = v,
                   activeColor: AppTheme.brandGold),
             ),
             _SettingsTile(
               icon: Icons.zoom_in_rounded,
-              title: 'Default Zoom',
+              title: tr('Default Zoom'),
               subtitle: '${(prefs.defaultZoom * 100).toInt()}%',
               onTap: () => _showZoomPicker(context, prefs),
             ),
             _SettingsTile(
               icon: Icons.swap_vert_rounded,
-              title: 'Scroll Direction',
-              subtitle: prefs.scrollDirection == 'vertical' ? 'Vertical' : 'Horizontal',
+              title: tr('Scroll Direction'),
+              subtitle: prefs.scrollDirection == 'vertical' ? tr('Vertical') : tr('Horizontal'),
               onTap: () {
                 prefs.scrollDirection = prefs.scrollDirection == 'vertical' ? 'horizontal' : 'vertical';
               },
             ),
             _SettingsTile(
               icon: Icons.view_agenda_rounded,
-              title: 'Page Layout',
+              title: tr('Page Layout'),
               subtitle: _pageLayoutLabel(prefs.pageLayout),
               onTap: () => _showPageLayoutPicker(context, prefs),
             ),
           ]),
 
           // ── DISPLAY ──────────────────────────────────────
-          _group('Display', [
+          _group(tr('Display'), [
             _SettingsTile(
               icon: Icons.format_size_rounded,
-              title: 'Page Spacing',
-              subtitle: '${prefs.pageSpacing.toInt()} px between pages',
+              title: tr('Page Spacing'),
+              subtitle: tr('{n} px between pages', {'n': prefs.pageSpacing.toInt()}),
               onTap: () => _showSpacingPicker(context, prefs),
             ),
             _SettingsTile(
               icon: Icons.numbers_rounded,
-              title: 'Show Page Count',
-              subtitle: 'Display page indicator at bottom',
+              title: tr('Show Page Count'),
+              subtitle: tr('Display page indicator at bottom'),
               trailing: Switch(value: prefs.showPageCount, onChanged: (v) => prefs.showPageCount = v,
                   activeColor: AppTheme.brandGold),
             ),
             _SettingsTile(
               icon: Icons.swipe_rounded,
-              title: 'Show Scroll Head',
-              subtitle: 'Draggable scroll indicator on the side',
+              title: tr('Show Scroll Head'),
+              subtitle: tr('Draggable scroll indicator on the side'),
               trailing: Switch(value: prefs.showScrollHead, onChanged: (v) => prefs.showScrollHead = v,
                   activeColor: AppTheme.brandGold),
             ),
           ]),
 
           // ── DOCMIND™ AI ──────────────────────────────────
-          _group('DocMind™ AI', [
+          _group(tr('DocMind™ AI'), [
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -128,9 +139,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const AiOrb(size: 64),
                   const SizedBox(width: 8),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Your AI key', style: AppTheme.display(19)),
+                    Text(tr('Your AI key'), style: AppTheme.display(19)),
                     const SizedBox(height: 3),
-                    Text('Stays on this device and is never shared.',
+                    Text(tr('Stays on this device and is never shared.'),
                         style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
                   ])),
                 ]),
@@ -161,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 14),
                 Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  Text('Provider', style: AppTheme.body(13, color: AppTheme.creamMuted)),
+                  Text(tr('Provider'), style: AppTheme.body(13, color: AppTheme.creamMuted)),
                   Chip3D(label: 'Anthropic', selected: prefs.aiProvider == 'anthropic',
                       onTap: () => prefs.aiProvider = 'anthropic'),
                   Chip3D(label: 'OpenAI', selected: prefs.aiProvider == 'openai',
@@ -172,23 +183,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ], accent: const Color(0xFF8E7CF0)),
 
           // ── DATA ─────────────────────────────────────────
-          _group('Data', [
+          _group(tr('Data'), [
             _SettingsTile(
               icon: Icons.history_rounded,
-              title: 'Recent Documents',
-              subtitle: '$recentCount documents',
+              title: tr('Recent Documents'),
+              subtitle: tr('{n} documents', {'n': recentCount}),
             ),
             _SettingsTile(
               icon: Icons.delete_outline_rounded,
               iconColor: Colors.redAccent,
-              title: 'Clear Recent Documents',
-              subtitle: 'Remove all reading history',
+              title: tr('Clear Recent Documents'),
+              subtitle: tr('Remove all reading history'),
               onTap: () => _confirmClear(context),
             ),
           ]),
 
           // ── ABOUT ────────────────────────────────────────
-          _group('About', [
+          _group(tr('About'), [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               child: Row(children: [
@@ -197,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Wordmark(size: 22),
                   const SizedBox(height: 4),
-                  Text('v${AppConstants.appVersion} · by Martin B',
+                  Text(tr('v{v} · by Martin B', {'v': AppConstants.appVersion}),
                       style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
                   const SizedBox(height: 4),
                   Text(AppConstants.appTagline,
@@ -206,25 +217,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
             ),
             if (UpdateService.supported)
-              _SettingsTile(icon: Icons.system_update_rounded, title: 'Check for updates',
-                  subtitle: 'You have version ${AppConstants.appVersion}',
+              _SettingsTile(icon: Icons.system_update_rounded, title: tr('Check for updates'),
+                  subtitle: tr('You have version {v}', {'v': AppConstants.appVersion}),
                   onTap: () async {
                     final updates = context.read<UpdateService>();
                     await updates.check();
                     if (mounted && updates.available == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('ProDFOS is up to date')));
+                          SnackBar(content: Text(tr('ProDFOS is up to date'))));
                     }
                   }),
-            _SettingsTile(icon: Icons.forum_outlined, title: 'Send Feedback',
-                subtitle: 'Report a bug or suggest an idea',
+            _SettingsTile(icon: Icons.forum_outlined, title: tr('Send Feedback'),
+                subtitle: tr('Report a bug or suggest an idea'),
                 onTap: () => _openLink('https://github.com/fisbal/prodfos/issues/new')),
-            _SettingsTile(icon: Icons.privacy_tip_outlined, title: 'Privacy Policy',
-                subtitle: 'Your files never leave your device',
+            _SettingsTile(icon: Icons.privacy_tip_outlined, title: tr('Privacy Policy'),
+                subtitle: tr('Your files never leave your device'),
                 onTap: () => _openLink('https://fisbal.github.io/prodfos/privacy.html')),
-            _SettingsTile(icon: Icons.description_outlined, title: 'Terms of Service',
+            _SettingsTile(icon: Icons.description_outlined, title: tr('Terms of Service'),
                 onTap: () => _openLink('https://fisbal.github.io/prodfos/terms.html')),
-            _SettingsTile(icon: Icons.code_rounded, title: 'Open-source licenses',
+            _SettingsTile(icon: Icons.code_rounded, title: tr('Open-source licenses'),
                 subtitle: 'pdf.js, Flutter and the libraries ProDFOS uses',
                 onTap: () => showLicensePage(
                   context: context,
@@ -241,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _openLink(String url) async {
     final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open $url')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Could not open {url}', {'url': url}))));
     }
   }
 
@@ -268,20 +279,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear History?'),
-        content: const Text('This will remove all recent documents from the list. Your PDF files will not be deleted.'),
+        title: Text(tr('Clear History?')),
+        content: Text(tr('This will remove all recent documents from the list. Your PDF files will not be deleted.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
               context.read<DocumentManager>().clearAll();
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Recent documents cleared')),
+                SnackBar(content: Text(tr('Recent documents cleared'))),
               );
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Clear'),
+            child: Text(tr('Clear')),
           ),
         ],
       ),
@@ -290,11 +301,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _pageLayoutLabel(String layout) {
     switch (layout) {
-      case 'continuous': return 'Continuous Scroll';
-      case 'single': return 'Single Page';
-      case 'facing': return 'Two Pages Side-by-Side';
-      default: return 'Continuous Scroll';
+      case 'continuous': return tr('Continuous Scroll');
+      case 'single': return tr('Single Page');
+      case 'facing': return tr('Two Pages Side-by-Side');
+      default: return tr('Continuous Scroll');
     }
+  }
+
+  void _showLanguagePicker(BuildContext context) {
+    final current = savedLangChoice();
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(width: 40, height: 4, decoration: BoxDecoration(
+                color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2),
+              )),
+              const SizedBox(height: 16),
+              Text(tr('Language'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 8),
+              for (final code in ['', ...supportedLangs])
+                RadioListTile<String>(
+                  value: code,
+                  groupValue: current,
+                  title: Text(code.isEmpty ? tr('Automatic (device or Office In 1)') : langNames[code]!),
+                  activeColor: AppTheme.brandGold,
+                  onChanged: (v) {
+                    Navigator.pop(ctx);
+                    setLanguage(v ?? '');
+                  },
+                ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showZoomPicker(BuildContext context, PreferencesService prefs) {
@@ -310,7 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2),
             )),
             const SizedBox(height: 16),
-            const Text('Default Zoom', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(tr('Default Zoom'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 8),
             ...zooms.map((z) => RadioListTile<double>(
               value: z,
@@ -328,9 +374,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showPageLayoutPicker(BuildContext context, PreferencesService prefs) {
     final layouts = [
-      ('continuous', 'Continuous Scroll', Icons.view_agenda_rounded),
-      ('single', 'Single Page', Icons.crop_portrait_rounded),
-      ('facing', 'Two Pages Side-by-Side', Icons.menu_book_rounded),
+      ('continuous', tr('Continuous Scroll'), Icons.view_agenda_rounded),
+      ('single', tr('Single Page'), Icons.crop_portrait_rounded),
+      ('facing', tr('Two Pages Side-by-Side'), Icons.menu_book_rounded),
     ];
     showModalBottomSheet(
       context: context,
@@ -343,7 +389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2),
             )),
             const SizedBox(height: 16),
-            const Text('Page Layout', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(tr('Page Layout'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 8),
             ...layouts.map((l) => RadioListTile<String>(
               value: l.$1,
@@ -373,12 +419,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2),
             )),
             const SizedBox(height: 16),
-            const Text('Page Spacing', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(tr('Page Spacing'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 8),
             ...spacings.map((s) => RadioListTile<double>(
               value: s,
               groupValue: prefs.pageSpacing,
-              title: Text(s == 0 ? 'No gap' : '${s.toInt()} px'),
+              title: Text(s == 0 ? tr('No gap') : '${s.toInt()} px'),
               activeColor: AppTheme.brandGold,
               onChanged: (v) { prefs.pageSpacing = v!; Navigator.pop(ctx); },
             )),

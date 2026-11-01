@@ -9,6 +9,7 @@ import '../../core/services/document_manager.dart';
 import '../../core/services/pdf_edit_service.dart';
 import 'page_canvas_screen.dart';
 import 'page_organizer_screen.dart';
+import '../../core/l10n/l10n.dart';
 
 class EditorScreen extends StatefulWidget {
   final String filePath;
@@ -45,7 +46,7 @@ class _EditorScreenState extends State<EditorScreen> {
       final b = await AppFiles.readBytes(widget.filePath);
       setState(() => _bytes = b);
     } catch (e) {
-      setState(() => _error = 'Could not open file:\n$e');
+      setState(() => _error = tr('Could not open file:\n{e}', {'e': e}));
     }
   }
 
@@ -90,7 +91,7 @@ class _EditorScreenState extends State<EditorScreen> {
       );
       if (result != null && mounted) _commit(base, result);
     } catch (e) {
-      _snack('Could not open editor: $e');
+      _snack(tr('Could not open editor: {e}', {'e': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -112,7 +113,7 @@ class _EditorScreenState extends State<EditorScreen> {
         _commit(base, result);
       }
     } catch (e) {
-      _snack('Could not open pages: $e');
+      _snack(tr('Could not open pages: {e}', {'e': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -150,7 +151,7 @@ class _EditorScreenState extends State<EditorScreen> {
       setState(() => _dirty = false);
       _showSaved(path, name);
     } catch (e) {
-      _snack('Save failed: $e');
+      _snack(tr('Save failed: {e}', {'e': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -160,32 +161,32 @@ class _EditorScreenState extends State<EditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 8),
-          Text('Saved'),
+          Text(tr('Saved')),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name),
           const SizedBox(height: 8),
           Text(AppFiles.isWeb
-              ? 'Kept in this browser (Tools → Created files). Use Download to save it.\nYour original file is untouched.'
-              : 'Saved to the ProDFOS folder.\nYour original file is untouched.',
+              ? tr('Kept in this browser (Tools → Created files). Use Download to save it.\nYour original file is untouched.')
+              : tr('Saved to the ProDFOS folder.\nYour original file is untouched.'),
             style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keep editing')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Keep editing'))),
           TextButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.share(path); },
             icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
-            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+            label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
           ),
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
               context.pushReplacement('/viewer?path=${Uri.encodeComponent(path)}');
             },
-            icon: const Icon(Icons.visibility_rounded, size: 18), label: const Text('Open'),
+            icon: const Icon(Icons.visibility_rounded, size: 18), label: Text(tr('Open')),
           ),
         ],
       ),
@@ -197,12 +198,12 @@ class _EditorScreenState extends State<EditorScreen> {
     final r = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: const Text('Save your edits as a new copy before leaving?'),
+        title: Text(tr('Unsaved changes')),
+        content: Text(tr('Save your edits as a new copy before leaving?')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'discard'), child: const Text('Discard')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'stay'), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'discard'), child: Text(tr('Discard'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'stay'), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: Text(tr('Save'))),
         ],
       ),
     );
@@ -238,13 +239,13 @@ class _EditorScreenState extends State<EditorScreen> {
           title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_fileName, overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            Text(_pageCount > 0 ? 'Editing · page $_page of $_pageCount' : 'Editing',
+            Text(_pageCount > 0 ? tr('Editing · page {page} of {count}', {'page': _page, 'count': _pageCount}) : tr('Editing'),
               style: TextStyle(fontSize: 11, color: _gold.withValues(alpha: 0.8))),
           ]),
           actions: [
             IconButton(
               icon: const Icon(Icons.undo_rounded),
-              tooltip: 'Undo',
+              tooltip: tr('Undo'),
               onPressed: _undo.isEmpty || _busy ? null : _undoLast,
             ),
             Padding(
@@ -255,7 +256,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.save_rounded, size: 18),
-                label: const Text('Save'),
+                label: Text(tr('Save')),
               ),
             ),
           ],
@@ -298,13 +299,13 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Widget _markupHint() {
-    final name = _markup == PdfAnnotationMode.highlight ? 'Highlight'
-        : _markup == PdfAnnotationMode.underline ? 'Underline' : 'Strikethrough';
+    final name = _markup == PdfAnnotationMode.highlight ? tr('Highlight')
+        : _markup == PdfAnnotationMode.underline ? tr('Underline') : tr('Strikethrough');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: _gold.withValues(alpha: 0.12),
-      child: Text('$name on — drag across text. Tap $name again to stop.',
+      child: Text(tr('{name} on — drag across text. Tap {name} again to stop.', {'name': name}),
         style: TextStyle(fontSize: 12, color: _gold.withValues(alpha: 0.95))),
     );
   }
@@ -323,27 +324,27 @@ class _EditorScreenState extends State<EditorScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             children: [
-              _tool(Icons.border_color_rounded, 'Highlight',
+              _tool(Icons.border_color_rounded, tr('Highlight'),
                   active: _markup == PdfAnnotationMode.highlight,
                   onTap: () => _setMarkup(PdfAnnotationMode.highlight)),
-              _tool(Icons.format_underlined_rounded, 'Underline',
+              _tool(Icons.format_underlined_rounded, tr('Underline'),
                   active: _markup == PdfAnnotationMode.underline,
                   onTap: () => _setMarkup(PdfAnnotationMode.underline)),
-              _tool(Icons.strikethrough_s_rounded, 'Strike',
+              _tool(Icons.strikethrough_s_rounded, tr('Strike'),
                   active: _markup == PdfAnnotationMode.strikethrough,
                   onTap: () => _setMarkup(PdfAnnotationMode.strikethrough)),
               _divider(),
-              _tool(Icons.edit_rounded, 'Draw', onTap: () => _openCanvas(CanvasTool.pen)),
-              _tool(Icons.text_fields_rounded, 'Text', onTap: () => _openCanvas(CanvasTool.text)),
-              _tool(Icons.image_rounded, 'Image', onTap: () => _openCanvas(CanvasTool.image)),
-              _tool(Icons.approval_rounded, 'Stamp', onTap: () => _openCanvas(CanvasTool.stamp)),
-              _tool(Icons.draw_rounded, 'Sign', onTap: () => _openCanvas(CanvasTool.signature)),
-              _tool(Icons.sticky_note_2_rounded, 'Note', onTap: () => _openCanvas(CanvasTool.note)),
-              _tool(Icons.find_replace_rounded, 'Replace', onTap: () => _openCanvas(CanvasTool.replace)),
+              _tool(Icons.edit_rounded, tr('Draw'), onTap: () => _openCanvas(CanvasTool.pen)),
+              _tool(Icons.text_fields_rounded, tr('Text'), onTap: () => _openCanvas(CanvasTool.text)),
+              _tool(Icons.image_rounded, tr('Image'), onTap: () => _openCanvas(CanvasTool.image)),
+              _tool(Icons.approval_rounded, tr('Stamp'), onTap: () => _openCanvas(CanvasTool.stamp)),
+              _tool(Icons.draw_rounded, tr('Sign'), onTap: () => _openCanvas(CanvasTool.signature)),
+              _tool(Icons.sticky_note_2_rounded, tr('Note'), onTap: () => _openCanvas(CanvasTool.note)),
+              _tool(Icons.find_replace_rounded, tr('Replace'), onTap: () => _openCanvas(CanvasTool.replace)),
               _divider(),
-              _tool(Icons.auto_awesome_motion_rounded, 'Pages', onTap: _openPages),
-              _tool(Icons.assignment_rounded, 'Forms', onTap: () =>
-                  _snack('Tap any form field in the document to fill it. Tap Save when done.')),
+              _tool(Icons.auto_awesome_motion_rounded, tr('Pages'), onTap: _openPages),
+              _tool(Icons.assignment_rounded, tr('Forms'), onTap: () =>
+                  _snack(tr('Tap any form field in the document to fill it. Tap Save when done.'))),
             ],
           ),
         ),

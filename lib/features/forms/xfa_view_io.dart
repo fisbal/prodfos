@@ -7,6 +7,7 @@ import 'package:webview_windows/webview_windows.dart' as win;
 import '../../core/platform/app_files.dart';
 import '../../core/theme/app_theme.dart';
 import 'forms_server.dart';
+import '../../core/l10n/l10n.dart';
 
 /// Native Forms engine view (Android WebView / Windows WebView2).
 class XfaView extends StatefulWidget {
@@ -84,7 +85,7 @@ class _XfaViewState extends State<XfaView> {
   @override
   Widget build(BuildContext context) {
     if (_error != null) {
-      return _message(Icons.error_outline_rounded, 'Forms engine could not start', _error!);
+      return _message(Icons.error_outline_rounded, tr('Forms engine could not start'), _error!);
     }
     if (_uri == null) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.brandGold));
@@ -95,13 +96,12 @@ class _XfaViewState extends State<XfaView> {
     // No embedded browser available → open the same engine in the default browser.
     return _message(
       Icons.open_in_browser_rounded,
-      'Open this form in your browser',
-      'The built-in viewer needs Microsoft Edge WebView2. ProDFOS can still open the form '
-          'in your browser with the same engine — Save still lands in your ProDFOS folder.',
+      tr('Open this form in your browser'),
+      tr('The built-in viewer needs Microsoft Edge WebView2. ProDFOS can still open the form in your browser with the same engine — Save still lands in your ProDFOS folder.'),
       action: FilledButton.icon(
         onPressed: () => launchUrl(_uri!, mode: LaunchMode.externalApplication),
         icon: const Icon(Icons.open_in_new_rounded, size: 18),
-        label: const Text('Open in browser'),
+        label: Text(tr('Open in browser')),
       ),
     );
   }

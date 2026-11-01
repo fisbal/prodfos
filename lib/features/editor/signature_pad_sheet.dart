@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:syncfusion_flutter_signaturepad/signaturepad.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/l10n/l10n.dart';
 
 /// Returns PNG bytes (transparent background) of the signature, or null.
 class SignaturePadSheet extends StatefulWidget {
@@ -64,10 +65,10 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
             Center(child: Container(width: 40, height: 4,
               decoration: BoxDecoration(color: AppTheme.darkBorder, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
-            const Text('Your Signature',
+            Text(tr('Your Signature'),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Sign inside the box with your finger',
+            Text(tr('Sign inside the box with your finger'),
               style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.45))),
             const SizedBox(height: 16),
 
@@ -85,14 +86,14 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
                   child: Row(children: [
                     Expanded(child: Image.memory(_saved!, fit: BoxFit.contain)),
                     const SizedBox(width: 10),
-                    const Text('Use saved',
+                    Text(tr('Use saved'),
                       style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
                     const Icon(Icons.chevron_right, color: Colors.black54),
                   ]),
                 ),
               ),
               const SizedBox(height: 12),
-              Text('or draw a new one', textAlign: TextAlign.center,
+              Text(tr('or draw a new one'), textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4))),
               const SizedBox(height: 12),
             ],
@@ -143,14 +144,14 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
                   setState(() => _hasStrokes = false);
                 },
                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Clear'),
+                label: Text(tr('Clear')),
               ),
             ]),
             const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: _hasStrokes ? _useDrawn : null,
               icon: const Icon(Icons.check_rounded),
-              label: const Text('Use this signature'),
+              label: Text(tr('Use this signature')),
               style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
           ],

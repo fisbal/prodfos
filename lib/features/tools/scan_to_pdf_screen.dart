@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/image_enhancer.dart';
+import '../../core/l10n/l10n.dart';
 
 class ScanToPdfScreen extends StatefulWidget {
   const ScanToPdfScreen({super.key});
@@ -40,7 +41,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
     if (!mounted) return;
     setState(() {
       for (final p in paths) {
-        _pages.add(_ScanPage(path: p, name: 'Page ${_pages.length + 1}'));
+        _pages.add(_ScanPage(path: p, name: tr('Page {n}', {'n': _pages.length + 1})));
       }
     });
   }
@@ -65,7 +66,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       if (images.isEmpty) return;
       setState(() {
         for (final path in images) {
-          _pages.add(_ScanPage(path: path, name: 'Page ${_pages.length + 1}'));
+          _pages.add(_ScanPage(path: path, name: tr('Page {n}', {'n': _pages.length + 1})));
         }
       });
     } catch (e) {
@@ -73,7 +74,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       final msg = e.toString().toLowerCase();
       if (mounted && !msg.contains('cancel')) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scanner error: $e')),
+          SnackBar(content: Text(tr('Scanner error: {e}', {'e': e}))),
         );
       }
     } finally {
@@ -98,7 +99,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
   // ── Build PDF ────────────────────────────────────────────
   Future<void> _createPdf() async {
     if (_pages.isEmpty) return;
-    setState(() { _isProcessing = true; _status = 'Preparing...'; });
+    setState(() { _isProcessing = true; _status = tr('Preparing...'); });
 
     try {
       var paths = _pages.map((p) => p.path).toList();
@@ -106,7 +107,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       if (_prodfosHandlesColor) {
         final enhanced = <String>[];
         for (int i = 0; i < paths.length; i++) {
-          setState(() => _status = 'Enhancing ${i + 1}/${paths.length}...');
+          setState(() => _status = tr('Enhancing {i}/{n}...', {'i': i + 1, 'n': paths.length}));
           final src = await AppFiles.readBytes(paths[i]);
           final out = await compute(enhanceImageBytes, <String, Object>{
             'bytes': src,
@@ -118,7 +119,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       }
 
       if (!mounted) return;
-      setState(() => _status = 'Building PDF...');
+      setState(() => _status = tr('Building PDF...'));
       final pdfService = context.read<PdfService>();
       final result = await pdfService.imagesToPdf(paths);
 
@@ -129,7 +130,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Failed: {e}', {'e': e}))));
       }
     }
   }
@@ -138,36 +139,36 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 8),
-          Text('Scan Complete'),
+          Text(tr('Scan Complete')),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${_pages.length} page(s) scanned'),
-            Text('File: ${result.fileName}'),
-            Text('Size: ${result.fileSizeFormatted}'),
+            Text(tr('{n} page(s) scanned', {'n': _pages.length})),
+            Text(tr('File: {name}', {'name': result.fileName})),
+            Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
             const SizedBox(height: 8),
-            Text(AppFiles.isWeb ? 'Kept in this browser (Tools → Created files)' : 'Saved to: ProDFOS folder',
+            Text(AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () { Navigator.pop(ctx); Navigator.pop(context); },
-            child: const Text('Done'),
+            child: Text(tr('Done')),
           ),
           TextButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.share(result.outputPath); },
             icon: Icon(AppFiles.isWeb ? Icons.download_rounded : Icons.share, size: 18),
-            label: Text(AppFiles.isWeb ? 'Download' : 'Share'),
+            label: Text(AppFiles.isWeb ? tr('Download') : tr('Share')),
           ),
           FilledButton.icon(
             onPressed: () { Navigator.pop(ctx); AppFiles.open(result.outputPath); },
-            icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Open'),
+            icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Open')),
           ),
         ],
       ),
@@ -176,7 +177,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
 
   void _renumberPages() {
     for (int i = 0; i < _pages.length; i++) {
-      _pages[i] = _ScanPage(path: _pages[i].path, name: 'Page ${i + 1}');
+      _pages[i] = _ScanPage(path: _pages[i].path, name: tr('Page {n}', {'n': i + 1}));
     }
   }
 
@@ -185,7 +186,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan to PDF'),
+        title: Text(tr('Scan to PDF')),
         actions: [
           if (_pages.isNotEmpty)
             Padding(
@@ -196,7 +197,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                     ? const SizedBox(width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                label: Text(_isProcessing ? _status : 'Create PDF'),
+                label: Text(_isProcessing ? _status : tr('Create PDF')),
               ),
             ),
         ],
@@ -210,12 +211,12 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
               child: Row(children: [
                 Icon(Icons.description_rounded, size: 18, color: AppTheme.brandGold.withValues(alpha: 0.7)),
                 const SizedBox(width: 8),
-                Text('${_pages.length} page(s)', style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(tr('{n} page(s)', {'n': _pages.length}), style: const TextStyle(fontWeight: FontWeight.w600)),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _isProcessing ? null : () => setState(() => _pages.clear()),
                   icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                  label: const Text('Clear All', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  label: Text(tr('Clear All'), style: TextStyle(color: Colors.red, fontSize: 12)),
                 ),
               ]),
             ),
@@ -231,21 +232,21 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
             ),
             child: Column(children: [
               Row(children: [
-                Expanded(child: _filterChip('original', 'Original', Icons.image_rounded)),
+                Expanded(child: _filterChip('original', tr('Original'), Icons.image_rounded)),
                 const SizedBox(width: 6),
-                Expanded(child: _filterChip('natural', 'Natural', Icons.wb_sunny_outlined)),
+                Expanded(child: _filterChip('natural', tr('Natural'), Icons.wb_sunny_outlined)),
                 const SizedBox(width: 6),
-                Expanded(child: _filterChip('bright', 'Bright', Icons.auto_fix_high_rounded)),
+                Expanded(child: _filterChip('bright', tr('Bright'), Icons.auto_fix_high_rounded)),
                 const SizedBox(width: 6),
                 Expanded(child: _filterChip('bw', 'B&W', Icons.contrast_rounded)),
               ]),
               const SizedBox(height: 8),
               Text(
                 !_hasSmartScanner
-                    ? (_prodfosHandlesColor ? 'ProDFOS enhances every page' : 'Pages kept exactly as captured')
+                    ? (_prodfosHandlesColor ? tr('ProDFOS enhances every page') : tr('Pages kept exactly as captured'))
                     : _prodfosHandlesColor
-                        ? 'Google auto-enhance off · ProDFOS handles color'
-                        : 'Google scanner tools enabled · no ProDFOS processing',
+                        ? tr('Google auto-enhance off · ProDFOS handles color')
+                        : tr('Google scanner tools enabled · no ProDFOS processing'),
                 style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35)),
               ),
               const SizedBox(height: 12),
@@ -254,7 +255,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                 child: FilledButton.icon(
                   onPressed: _isProcessing ? null : _scanWithMLKit,
                   icon: const Icon(Icons.document_scanner_rounded, size: 20),
-                  label: const Text('Smart Scan'),
+                  label: Text(tr('Smart Scan')),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
@@ -267,7 +268,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isProcessing ? null : _captureBasic,
                     icon: const Icon(Icons.camera_alt_rounded, size: 18),
-                    label: const Text('Quick Photo'),
+                    label: Text(tr('Quick Photo')),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.4)),
@@ -279,7 +280,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isProcessing ? null : _addFromGallery,
                     icon: const Icon(Icons.photo_library_rounded, size: 18),
-                    label: Text(_hasCamera ? 'Gallery' : 'Add images'),
+                    label: Text(_hasCamera ? tr('Gallery') : tr('Add images')),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.4)),
@@ -334,10 +335,10 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
             child: Icon(Icons.document_scanner_rounded, size: 42, color: _teal.withValues(alpha: 0.7)),
           ),
           const SizedBox(height: 20),
-          const Text('Smart Document Scanner', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          Text(tr('Smart Document Scanner'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Text(
-            'Pick a look below, then scan.\nNatural keeps the real paper tone and watermarks.',
+            tr('Pick a look below, then scan.\nNatural keeps the real paper tone and watermarks.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white.withValues(alpha: 0.4), height: 1.5),
           ),
@@ -375,7 +376,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
               children: [
                 Text(page.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text('Drag to reorder', style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
+                Text(tr('Drag to reorder'), style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
               ],
             )),
             IconButton(

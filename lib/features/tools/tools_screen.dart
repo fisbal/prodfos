@@ -5,6 +5,7 @@ import '../../core/platform/app_files.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/cinematic.dart';
 import '../../core/widgets/scene3d.dart';
+import '../../core/l10n/l10n.dart';
 
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({super.key});
@@ -39,10 +40,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return tr('just now');
+    if (diff.inMinutes < 60) return tr('{n}m ago', {'n': diff.inMinutes});
+    if (diff.inHours < 24) return tr('{n}h ago', {'n': diff.inHours});
+    if (diff.inDays < 7) return tr('{n}d ago', {'n': diff.inDays});
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
@@ -70,10 +71,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete file?'),
-        content: Text('Delete "${file.name}"? This cannot be undone.'),
+        title: Text(tr('Delete file?')),
+        content: Text(tr('Delete "{name}"? This cannot be undone.', {'name': file.name})),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -81,11 +82,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
               await _loadOutputFiles();
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('File deleted')),
+                SnackBar(content: Text(tr('File deleted'))),
               );
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-            child: const Text('Delete'),
+            child: Text(tr('Delete')),
           ),
         ],
       ),
@@ -113,11 +114,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
   @override
   Widget build(BuildContext context) {
     final grid = <(Scene, String, String, String)>[
-      (Scene.merge, 'Merge', 'Combine PDFs into one', '/tools/merge'),
-      (Scene.split, 'Split', 'Extract pages or ranges', '/tools/split'),
-      (Scene.extract, 'Extract Text', 'Pull all text to .txt', '/tools/extract-text'),
-      (Scene.images, 'Images to PDF', 'Photos into a document', '/tools/images-to-pdf'),
-      (Scene.text, 'Text to PDF', 'Type it, save it', '/tools/text-to-pdf'),
+      (Scene.merge, tr('Merge'), tr('Combine PDFs into one'), '/tools/merge'),
+      (Scene.split, tr('Split'), tr('Extract pages or ranges'), '/tools/split'),
+      (Scene.extract, tr('Extract Text'), tr('Pull all text to .txt'), '/tools/extract-text'),
+      (Scene.images, tr('Images to PDF'), tr('Photos into a document'), '/tools/images-to-pdf'),
+      (Scene.text, tr('Text to PDF'), tr('Type it, save it'), '/tools/text-to-pdf'),
     ];
 
     return Scaffold(
@@ -136,20 +137,20 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   child: Row(children: [
                     GlassIconButton(icon: Icons.arrow_back_rounded, onTap: () => context.pop()),
                     const Spacer(),
-                    GlassIconButton(icon: Icons.refresh_rounded, tooltip: 'Refresh', onTap: _loadOutputFiles),
+                    GlassIconButton(icon: Icons.refresh_rounded, tooltip: tr('Refresh'), onTap: _loadOutputFiles),
                   ]),
                 )),
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 26, 24, 0),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Kicker('Craft your documents').cinematicIn(delayMs: 60, blur: false),
+                    Kicker(tr('Craft your documents')).cinematicIn(delayMs: 60, blur: false),
                     const SizedBox(height: 10),
                     // Shrinks on narrow phones and with large system text instead of running off the screen.
                     FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Row(
                       mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic, children: [
-                        Text('PDF ', style: AppTheme.display(40)),
-                        GoldText('Tools', style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
+                        Text(tr('PDF §headline'), style: AppTheme.display(40)),
+                        GoldText(tr('Tools§headline'), style: AppTheme.display(40, italic: true, weight: FontWeight.w600)),
                       ])).cinematicIn(delayMs: 140),
                   ]),
                 )),
@@ -159,13 +160,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                   child: IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Expanded(child: SceneTile(
-                      scene: Scene.edit, label: 'Edit PDF', large: true, sceneHeight: 96,
-                      subtitle: 'Sign, annotate, fill forms, organize pages',
+                      scene: Scene.edit, label: tr('Edit PDF'), large: true, sceneHeight: 96,
+                      subtitle: tr('Sign, annotate, fill forms, organize pages'),
                       onTap: _pickAndEdit)),
                     const SizedBox(width: 12),
                     Expanded(child: SceneTile(
-                      scene: Scene.scan, label: 'Scan', large: true, sceneHeight: 96,
-                      subtitle: 'Camera to crisp PDF, auto edges',
+                      scene: Scene.scan, label: tr('Scan'), large: true, sceneHeight: 96,
+                      subtitle: tr('Camera to crisp PDF, auto edges'),
                       accent: const Color(0xFF4DB6AC), onTap: () => _go('/tools/scan'))),
                   ])),
                 ).cinematicIn(delayMs: 240)),
@@ -176,7 +177,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   sliver: SliverGrid.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 12,
-                      mainAxisExtent: 196,
+                      mainAxisExtent: 236, // room for a two-line name and a three-line description in every language
                     ),
                     itemCount: grid.length,
                     itemBuilder: (_, i) => SceneTile(
@@ -191,7 +192,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 34, 24, 12),
                   child: Row(children: [
-                    const Kicker('Created files'),
+                    Kicker(tr('Created files')),
                     const SizedBox(width: 8),
                     if (_outputFiles.isNotEmpty)
                       Container(
@@ -209,8 +210,8 @@ class _ToolsScreenState extends State<ToolsScreen> {
                   SliverToBoxAdapter(child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
                     child: Text(AppFiles.isWeb
-                        ? 'Files you create appear here — kept in this browser. Use ⋮ → Download to save them to your computer.'
-                        : 'Files you create appear here — saved in ${_savedIn()}.',
+                        ? tr('Files you create appear here — kept in this browser. Use ⋮ → Download to save them to your computer.')
+                        : tr('Files you create appear here — saved in {place}.', {'place': _savedIn()}),
                         style: AppTheme.body(13, color: AppTheme.creamFaint, height: 1.4)),
                   ))
                 else
@@ -269,9 +270,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'open', child: Text('Open')),
-              PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? 'Download' : 'Share')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+              PopupMenuItem(value: 'open', child: Text(tr('Open'))),
+              PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? tr('Download') : tr('Share'))),
+              PopupMenuItem(value: 'delete', child: Text(tr('Delete'), style: TextStyle(color: Colors.redAccent))),
             ],
           ),
         ]),
