@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
+import '../../core/services/print/print_requests.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -21,7 +24,9 @@ import '../../core/l10n/l10n.dart';
 /// be toggled from the toolbar.
 class ViewerScreen extends StatefulWidget {
   final String filePath;
-  const ViewerScreen({super.key, required this.filePath});
+  /// The file's bytes when they are already in memory (skips reading [filePath] again).
+  final Uint8List? bytes;
+  const ViewerScreen({super.key, required this.filePath, this.bytes});
   @override
   State<ViewerScreen> createState() => _ViewerScreenState();
 }
@@ -46,12 +51,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void initState() {
     super.initState();
     _nightMode = context.read<PreferencesService>().nightMode;
+    printRequests.addListener(_onPrintRequest);
     _load();
   }
 
   Future<void> _load() async {
     try {
-      final bytes = await AppFiles.readBytes(widget.filePath);
+      final bytes = widget.bytes ?? await AppFiles.readBytes(widget.filePath);
       final xfa = _containsAscii(bytes, '/XFA') || _looksLikeXfaPlaceholder(bytes);
       if (!mounted) return;
       setState(() {
@@ -115,9 +121,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() { printRequests.removeListener(_onPrintRequest); _controller.dispose(); super.dispose(); }
 
   String get _fileName => fileNameOf(widget.filePath);
+
+  /// Prints the PDF itself (never a picture of the screen) with the system print dialog.
+  Future<void> _print() async {
+    final bytes = _bytes;
+    if (bytes == null) return;
+    try {
+      await Printing.layoutPdf(onLayout: (_) async => bytes, name: _fileName);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Printing failed: {e}', {'e': e}))));
+    }
+  }
+
+  void _onPrintRequest() => _print();
 
   void _saveProgress() {
     if (!_formsEngine) {
@@ -141,7 +160,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget build(BuildContext context) {
     final prefs = context.watch<PreferencesService>();
 
-    return Scaffold(
+    // Ctrl+P (⌘P on Mac) prints, like in every PDF reader.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyP, control: true): _print,
+        const SingleActivator(LogicalKeyboardKey.keyP, meta: true): _print,
+      },
+      child: Focus(autofocus: true, child: Scaffold(
       backgroundColor: _nightMode && !_formsEngine ? Colors.black : AppTheme.voidBlack,
       body: SafeArea(
         child: Column(
@@ -160,7 +185,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           ],
         ),
       ),
-    );
+    )));
   }
 
   Widget _buildBody(PreferencesService prefs) {
@@ -280,6 +305,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
               context.push('/editor?path=${Uri.encodeComponent(widget.filePath)}');
             }),
         ],
+        // Narrow phones keep Print in the ⋮ menu (and Ctrl+P), so the file name keeps its room.
+        if (MediaQuery.sizeOf(context).width >= 420) ...[
+          const SizedBox(width: 4),
+          Key3D(icon: Icons.print_rounded, size: 36, tooltip: tr('Print (Ctrl+P)'),
+            onTap: _bytes == null ? null : _print),
+        ],
         const SizedBox(width: 6),
         PopupMenuButton<String>(
           key: _menuKey,
@@ -290,6 +321,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               case 'last': if (_totalPages > 0) _controller.jumpToPage(_totalPages);
               case 'bookmark': _viewerKey.currentState?.openBookmarkView();
               case 'share': AppFiles.share(widget.filePath);
+              case 'print': _print();
             }
           },
           itemBuilder: (_) => [
@@ -299,6 +331,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               PopupMenuDivider(),
               PopupMenuItem(value: 'bookmark', child: Text(tr('Bookmarks'))),
             ],
+            PopupMenuItem(value: 'print', child: Text(tr('Print (Ctrl+P)'))),
             PopupMenuItem(value: 'share', child: Text(AppFiles.isWeb ? tr('Download') : tr('Share'))),
           ],
           child: Key3D(icon: Icons.more_vert_rounded, size: 36,
