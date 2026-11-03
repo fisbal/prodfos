@@ -11,3 +11,9 @@ final ValueNotifier<int> printRequests = ValueNotifier<int>(0);
 
 /// Starts listening to the page around ProDFOS (web build only; nothing elsewhere).
 void listenForPrintRequests() => bridge.listen(() => printRequests.value++);
+
+/// True for the web build shown inside Office In 1.
+bool get insideOfficeIn1 => bridge.insideOfficeIn1;
+
+/// Hands the pages, as pictures, to Office In 1, which prints them from its own window.
+void sendPagesToPrint(String name, List<Uint8List> pngs) => bridge.sendPagesToPrint(name, pngs);
