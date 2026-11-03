@@ -197,7 +197,9 @@ class PdfService extends ChangeNotifier {
   // ══════════════════════════════════════════════════════════════════
   // IMAGE TO PDF — Create PDF from images
   // ══════════════════════════════════════════════════════════════════
-  Future<PdfResult> imagesToPdf(List<String> imagePaths) async {
+  /// [paper]: 'letter' (default), 'a4' (an A4 picture fills the page exactly, so ID cards print at
+  /// real size), or 'image' (the page takes the picture's shape, for long receipts).
+  Future<PdfResult> imagesToPdf(List<String> imagePaths, {String paper = 'letter'}) async {
     _setStatus(tr('Creating PDF from {n} images...', {'n': imagePaths.length}));
 
     try {
@@ -214,10 +216,17 @@ class PdfService extends ChangeNotifier {
         // Each image gets its own section so orientation is per-page.
         // Syncfusion ignores a custom landscape Size — orientation must be explicit.
         final section = doc.sections!.add();
-        section.pageSettings.size = sync_pdf.PdfPageSize.letter; // 8.5 x 11 in
-        section.pageSettings.orientation = isLandscape
-            ? sync_pdf.PdfPageOrientation.landscape
-            : sync_pdf.PdfPageOrientation.portrait;
+        if (paper == 'image' && !isLandscape) {
+          // 80 mm wide (a till roll) and as long as the picture.
+          const w = 80 * 72 / 25.4;
+          section.pageSettings.size = Size(w, w * image.height / image.width);
+          section.pageSettings.orientation = sync_pdf.PdfPageOrientation.portrait;
+        } else {
+          section.pageSettings.size = paper == 'a4' ? sync_pdf.PdfPageSize.a4 : sync_pdf.PdfPageSize.letter;
+          section.pageSettings.orientation = isLandscape
+              ? sync_pdf.PdfPageOrientation.landscape
+              : sync_pdf.PdfPageOrientation.portrait;
+        }
         section.pageSettings.margins.all = 0;
 
         final page = section.pages.add();

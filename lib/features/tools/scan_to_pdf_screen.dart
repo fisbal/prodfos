@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
@@ -7,6 +8,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/platform/app_files.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/image_enhancer.dart';
+import '../../core/services/scan_layout.dart';
+import 'scan_types.dart';
 import '../../core/l10n/l10n.dart';
 
 class ScanToPdfScreen extends StatefulWidget {
@@ -20,6 +23,19 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
   bool _isProcessing = false;
   String _status = '';
   String _filter = 'natural'; // original | natural | bright | bw
+  ScanType _type = scanTypes.first;
+  // Book: cut double pages in two, reading direction, binding shadow, cover kept whole.
+  bool _split = true, _rtl = false, _shadow = true, _cover = true;
+  // Cards: a watermark so a copy cannot be reused ("Copie pour la banque X").
+  final _mark = TextEditingController();
+
+  @override
+  void dispose() { _mark.dispose(); super.dispose(); }
+
+  void _pickType(ScanType t) => setState(() { _type = t; _filter = t.filter; });
+
+  /// Cards: which side the next picture is (front, back).
+  String get _nextSide => !_type.isCard || _type.sides < 2 ? '' : (_pages.length.isEven ? tr('Front side') : tr('Back side§card'));
 
   static const _teal = Color(0xFF00897B);
 
@@ -55,7 +71,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       options: DocumentScannerOptions(
         documentFormats: const {DocumentFormat.jpeg},
         mode: _prodfosHandlesColor ? ScannerMode.base : ScannerMode.full,
-        pageLimit: 50,
+        pageLimit: _type.isCard ? _type.sides : 50,
         isGalleryImport: false,
       ),
     );
@@ -82,12 +98,19 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
     }
   }
 
+  /// Book: the camera opens again for the next page until you cancel. Card: front, then back.
   Future<void> _captureBasic() async {
-    final photo = await ImagePicker().pickImage(
-      source: ImageSource.camera, requestFullMetadata: false,
-    );
-    if (photo == null) return;
-    await _addXFiles([photo]);
+    final start = _pages.length;
+    while (mounted) {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera, requestFullMetadata: false,
+      );
+      if (photo == null) return;
+      await _addXFiles([photo]);
+      final taken = _pages.length - start;
+      final more = _type.layout == 'book' || (_type.isCard && taken < _type.sides);
+      if (!more || taken >= 200) return;
+    }
   }
 
   Future<void> _addFromGallery() async {
@@ -118,10 +141,24 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
         paths = enhanced;
       }
 
+      // Lay the pages out for this kind of document (book pages, card at real size, receipt…).
+      if (_type.layout != 'photo' || _type.flatten) {
+        if (!mounted) return;
+        setState(() => _status = tr('Laying out pages...'));
+        final bytes = <Uint8List>[for (final p in paths) await AppFiles.readBytes(p)];
+        final laid = await compute(layoutPages, <String, Object>{
+          'bytes': bytes, 'layout': _type.layout,
+          'split': _split, 'rtl': _rtl, 'shadow': _type.layout == 'book' ? _shadow : _type.flatten, 'cover': _cover,
+          'cardW': _type.cardW, 'cardH': _type.cardH, 'sides': _type.sides, 'mark': _mark.text,
+        });
+        paths = [for (var i = 0; i < laid.length; i++) await AppFiles.fromBytes(laid[i], 'prodfos_page_$i.jpg')];
+      }
+
       if (!mounted) return;
       setState(() => _status = tr('Building PDF...'));
       final pdfService = context.read<PdfService>();
-      final result = await pdfService.imagesToPdf(paths);
+      final result = await pdfService.imagesToPdf(paths,
+          paper: _type.isCard ? 'a4' : _type.layout == 'receipt' ? 'image' : 'letter');
 
       if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
@@ -230,7 +267,12 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
               color: AppTheme.darkSurface,
               border: Border(top: BorderSide(color: AppTheme.darkBorder.withValues(alpha: 0.5))),
             ),
-            child: Column(children: [
+            // Short screens (a phone sideways): the panel scrolls instead of overflowing.
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.62),
+            child: SingleChildScrollView(child: Column(children: [
+              _typePicker(),
+              _typeOptions(),
+              const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: _filterChip('original', tr('Original'), Icons.image_rounded)),
                 const SizedBox(width: 6),
@@ -268,7 +310,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isProcessing ? null : _captureBasic,
                     icon: const Icon(Icons.camera_alt_rounded, size: 18),
-                    label: Text(tr('Quick Photo')),
+                    label: Text(_nextSide.isEmpty ? (_type.layout == 'book' ? tr('Page after page') : tr('Quick Photo')) : _nextSide, overflow: TextOverflow.ellipsis),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.4)),
@@ -288,7 +330,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
                   ),
                 ),
               ]),
-            ]),
+            ])),
           ),
         ],
       ),
@@ -324,6 +366,88 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
     );
   }
 
+  String _typeHint() {
+    switch (_type.layout) {
+      case 'book': return tr('Open the book flat. Each photo of two pages becomes two pages, in reading order, without the binding shadow. The camera opens again for the next page.');
+      case 'card': return _type.sides == 2
+          ? tr('Scan the front, then the back. Both come out at real size on one A4 sheet, ready to print.')
+          : tr('Scan the page with the photo. It comes out at real size on one A4 sheet, ready to print.');
+      case 'receipt': return tr('Lay the receipt flat on a dark table. It keeps its long shape.');
+      case 'board': return tr('Stand in front of the board. The light is made even and the marker stays sharp.');
+      case 'photo': return tr('The picture is kept as it is, colours included.');
+      default: return tr('Pick a look below, then scan.\nNatural keeps the real paper tone and watermarks.');
+    }
+  }
+
+  /// The kinds of document, in a row you can scroll (like pro scanner apps).
+  Widget _typePicker() {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        key: const ValueKey('scan-types'),
+        scrollDirection: Axis.horizontal,
+        itemCount: scanTypes.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final t = scanTypes[i];
+          final on = t.id == _type.id;
+          return ChoiceChip(
+            key: ValueKey('scan-type-${t.id}'),
+            selected: on,
+            showCheckmark: false,
+            avatar: Icon(t.icon, size: 16, color: on ? AppTheme.brandGold : Colors.white.withValues(alpha: 0.55)),
+            label: Text(tr(t.label)),
+            labelStyle: TextStyle(fontSize: 12.5, fontWeight: on ? FontWeight.w700 : FontWeight.w500, color: on ? AppTheme.brandGold : Colors.white.withValues(alpha: 0.75)),
+            selectedColor: AppTheme.brandGold.withValues(alpha: 0.15),
+            backgroundColor: AppTheme.darkCard,
+            side: BorderSide(color: on ? AppTheme.brandGold : AppTheme.darkBorder),
+            onSelected: _isProcessing ? null : (_) => _pickType(t),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Book and card settings.
+  Widget _typeOptions() {
+    Widget sw(String label, bool v, ValueChanged<bool> f) => FilterChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      selected: v, onSelected: _isProcessing ? null : (x) => setState(() => f(x)),
+      selectedColor: AppTheme.brandGold.withValues(alpha: 0.15), backgroundColor: AppTheme.darkCard,
+      side: BorderSide(color: v ? AppTheme.brandGold : AppTheme.darkBorder), visualDensity: VisualDensity.compact,
+    );
+    if (_type.layout == 'book') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Wrap(spacing: 6, runSpacing: 4, children: [
+          sw(tr('Split double pages'), _split, (x) => _split = x),
+          sw(tr('Remove binding shadow'), _shadow, (x) => _shadow = x),
+          sw(tr('Keep the cover whole'), _cover, (x) => _cover = x),
+          sw(tr('Right to left (Arabic, manga)'), _rtl, (x) => _rtl = x),
+        ]),
+      );
+    }
+    if (_type.isCard) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: TextField(
+          key: const ValueKey('scan-mark'),
+          controller: _mark,
+          enabled: !_isProcessing,
+          style: const TextStyle(fontSize: 13),
+          decoration: InputDecoration(
+            isDense: true,
+            prefixIcon: const Icon(Icons.water_drop_outlined, size: 18),
+            labelText: tr('Watermark (optional)'),
+            hintText: tr('Copy for … only – date'),
+            border: const OutlineInputBorder(),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: SingleChildScrollView(
@@ -338,7 +462,7 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
           Text(tr('Smart Document Scanner'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Text(
-            tr('Pick a look below, then scan.\nNatural keeps the real paper tone and watermarks.'),
+            _typeHint(),
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white.withValues(alpha: 0.4), height: 1.5),
           ),
@@ -376,7 +500,8 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
               children: [
                 Text(page.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text(tr('Drag to reorder'), style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
+                Text(_type.isCard && _type.sides == 2 ? (i.isEven ? tr('Front side') : tr('Back side§card')) : tr('Drag to reorder'),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
               ],
             )),
             IconButton(
