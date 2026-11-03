@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -130,6 +129,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final bytes = _bytes;
     if (bytes == null) return;
     try {
+      if (insideOfficeIn1) {
+        // Inside Office In 1 the browser cannot print a PDF from a frame: Office In 1 prints the pages itself.
+        final pngs = <Uint8List>[];
+        await for (final r in Printing.raster(bytes, dpi: 150)) {
+          pngs.add(await r.toPng());
+        }
+        sendPagesToPrint(_fileName, pngs);
+        return;
+      }
       await Printing.layoutPdf(onLayout: (_) async => bytes, name: _fileName);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Printing failed: {e}', {'e': e}))));
