@@ -377,4 +377,6 @@ const Map<String, List<String>> strings = {
   'Lay the receipt flat on a dark table. It keeps its long shape.': ['Posez le ticket à plat sur une table sombre. Il garde sa forme allongée.', 'Ponga el ticket plano sobre una mesa oscura. Conserva su forma alargada.', 'Ponha o talão plano numa mesa escura. Mantém a forma comprida.', 'Den Bon flach auf einen dunklen Tisch legen. Er behält seine lange Form.'],
   'Stand in front of the board. The light is made even and the marker stays sharp.': ['Placez-vous face au tableau. La lumière est égalisée et le feutre reste net.', 'Póngase frente a la pizarra. La luz se iguala y el rotulador queda nítido.', 'Fique de frente para o quadro. A luz fica uniforme e o marcador continua nítido.', 'Stell dich vor die Tafel. Das Licht wird ausgeglichen, die Schrift bleibt scharf.'],
   'The picture is kept as it is, colours included.': ['L’image est gardée telle quelle, couleurs comprises.', 'La imagen se conserva tal cual, colores incluidos.', 'A imagem fica tal como está, cores incluídas.', 'Das Bild bleibt, wie es ist, mit allen Farben.'],
+  'Print (Ctrl+P)': ['Imprimer (Ctrl+P)', 'Imprimir (Ctrl+P)', 'Imprimir (Ctrl+P)', 'Drucken (Strg+P)'],
+  'Printing failed: {e}': ['L’impression a échoué : {e}', 'No se pudo imprimir: {e}', 'Falha ao imprimir: {e}', 'Drucken fehlgeschlagen: {e}'],
 };
