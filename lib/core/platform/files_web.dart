@@ -149,5 +149,17 @@ class AppFiles {
     Timer(const Duration(seconds: 30), () => web.URL.revokeObjectURL(url));
   }
 
+  /// Where a saved file is, in words: this browser (Tools → Created files).
+  static String placeOf(String path) => tr('This browser (Tools → Created files)');
+
+  /// The browser downloads a copy (it asks where when it is set to).
+  static const bool canChoosePlace = true;
+
+  /// Downloads a copy of [path] named [name]. Returns the name.
+  static Future<String?> saveCopyAs(String path, String name) async {
+    downloadBytes(await readBytes(path), name);
+    return name;
+  }
+
   static ImageProvider image(String path) => MemoryImage(_get(path) ?? Uint8List(0));
 }

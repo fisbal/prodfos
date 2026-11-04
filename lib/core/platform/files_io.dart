@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'stored_file.dart';
+import '../l10n/l10n.dart';
 
 /// Native (Android / Windows) implementation — real files on disk.
 class AppFiles {
@@ -130,6 +131,36 @@ class AppFiles {
     final path = join(await outputDir(), name);
     await writeBytes(path, bytes);
     return path;
+  }
+
+  /// Where a saved file is, in words: "Downloads › ProDFOS" on Android, "Documents › ProDFOS" on Windows.
+  static String placeOf(String path) {
+    final sep = Platform.pathSeparator;
+    final parts = path.split(sep)..removeLast();
+    if (Platform.isAndroid && path.startsWith('/storage/emulated/0/')) {
+      final rel = path.substring('/storage/emulated/0/'.length).split('/')..removeLast();
+      if (rel.isNotEmpty && rel.first == 'Download') rel[0] = tr('Downloads');
+      return rel.isEmpty ? tr('Phone storage') : rel.join(' › ');
+    }
+    final i = parts.lastIndexWhere((p) => p == 'Documents');
+    if (i >= 0) return [tr('Documents'), ...parts.sublist(i + 1)].join(' › ');
+    return parts.join(sep);
+  }
+
+  /// Other places to save can be chosen with the system's "Save as" (Android: any folder or Drive).
+  static const bool canChoosePlace = true;
+
+  /// Saves a copy of [path] where the person chooses, named [name]. Returns where it went, or null.
+  static Future<String?> saveCopyAs(String path, String name) async {
+    final bytes = await readBytes(path);
+    final mobile = Platform.isAndroid || Platform.isIOS;
+    final picked = await FilePicker.platform.saveFile(
+      dialogTitle: tr('Save as'), fileName: name, type: FileType.custom, allowedExtensions: const ['pdf'],
+      bytes: mobile ? bytes : null,
+    );
+    if (picked == null) return null;
+    if (!mobile) await writeBytes(picked, bytes);
+    return picked;
   }
 
   static ImageProvider image(String path) => FileImage(File(path));

@@ -36,6 +36,33 @@ class PdfService extends ChangeNotifier {
   /// browser storage (Web).
   Future<String> _getOutputDir() => AppFiles.outputDir();
 
+  /// The name proposed for a new scan, like Adobe Scan: "ProDFOS Scan 2026-11-04 17h38".
+  static String defaultScanName([DateTime? at]) {
+    final d = at ?? DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return 'ProDFOS Scan ${d.year}-${two(d.month)}-${two(d.day)} ${two(d.hour)}h${two(d.minute)}';
+  }
+
+  /// A name the person typed, made safe for every system: no / \\ : * ? " < > |, ends in .pdf.
+  static String cleanPdfName(String raw) {
+    var n = raw.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (n.toLowerCase().endsWith('.pdf')) n = n.substring(0, n.length - 4).trim();
+    n = n.replaceAll(RegExp(r'^[. ]+|[. ]+$'), '');
+    if (n.isEmpty) n = 'Scan';
+    if (n.length > 120) n = n.substring(0, 120).trim();
+    return '$n.pdf';
+  }
+
+  /// [name] in [dir], or "name (2).pdf", "name (3).pdf"… when it is taken: never overwrites a file.
+  static Future<String> freeName(String dir, String name) async {
+    final base = name.substring(0, name.length - 4);
+    var candidate = name;
+    for (var i = 2; await AppFiles.exists(AppFiles.join(dir, candidate)) && i < 1000; i++) {
+      candidate = '$base ($i).pdf';
+    }
+    return candidate;
+  }
+
   /// Generate a unique output filename
   String _uniqueName(String baseName, String extension) {
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
@@ -199,7 +226,7 @@ class PdfService extends ChangeNotifier {
   // ══════════════════════════════════════════════════════════════════
   /// [paper]: 'letter' (default), 'a4' (an A4 picture fills the page exactly, so ID cards print at
   /// real size), or 'image' (the page takes the picture's shape, for long receipts).
-  Future<PdfResult> imagesToPdf(List<String> imagePaths, {String paper = 'letter'}) async {
+  Future<PdfResult> imagesToPdf(List<String> imagePaths, {String paper = 'letter', String? name}) async {
     _setStatus(tr('Creating PDF from {n} images...', {'n': imagePaths.length}));
 
     try {
@@ -250,7 +277,7 @@ class PdfService extends ChangeNotifier {
 
       // Save
       final outputDir = await _getOutputDir();
-      final fileName = _uniqueName('scan', 'pdf');
+      final fileName = name == null ? _uniqueName('scan', 'pdf') : await freeName(outputDir, cleanPdfName(name));
       final outputPath = AppFiles.join(outputDir, fileName);
       final outputBytes = await doc.save();
       await AppFiles.writeBytes(outputPath, outputBytes);
