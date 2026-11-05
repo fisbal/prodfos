@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prodfos/features/tools/scan_to_pdf_screen.dart';
+import 'package:prodfos/features/editor/editor_screen.dart';
 import 'package:prodfos/core/platform/app_files.dart';
 import 'package:prodfos/core/services/pdf_service.dart';
 
@@ -47,16 +48,36 @@ void main() {
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
       expect(find.text('Downloads › ProDFOS'), findsOneWidget);
-      expect(tester.widget<TextField>(find.byKey(const Key('scan-name'))).controller!.text, startsWith('ProDFOS Scan '));
-      await tester.enterText(find.byKey(const Key('scan-name')), 'Bail appartement');
-      await tester.ensureVisible(find.byKey(const Key('scan-place-other')));
+      expect(tester.widget<TextField>(find.byKey(const Key('save-name'))).controller!.text, startsWith('ProDFOS Scan '));
+      await tester.enterText(find.byKey(const Key('save-name')), 'Bail appartement');
+      await tester.ensureVisible(find.byKey(const Key('save-place-other')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('scan-place-other')));
+      await tester.tap(find.byKey(const Key('save-place-other')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('scan-save')));
+      await tester.tap(find.byKey(const Key('save-ok')));
       await tester.pumpAndSettle();
       expect(got?.name, 'Bail appartement');
       expect(got?.elsewhere, isTrue);
+    });
+  }
+
+  // The editor's title can be changed like a person would: tap it, type, OK (Martin 2026-11-05).
+  for (final size in const [Size(390, 844), Size(844, 390), Size(1366, 768)]) {
+    testWidgets('the editor title can be renamed at ${size.width.toInt()}x${size.height.toInt()}', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final path = AppFiles.join(Directory.systemTemp.createTempSync('prodfos_ed').path, 'Roles et Attentes.pdf');
+      await tester.pumpWidget(MaterialApp(home: EditorScreen(filePath: path)));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Roles et Attentes'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('editor-title')));
+      for (var i = 0; i < 10; i++) { await tester.pump(const Duration(milliseconds: 100)); }
+      await tester.enterText(find.byKey(const Key('rename-field')), 'Rôles et attentes - version finale');
+      await tester.tap(find.byKey(const Key('rename-ok')));
+      for (var i = 0; i < 10; i++) { await tester.pump(const Duration(milliseconds: 100)); }
+      expect(find.text('Rôles et attentes - version finale'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
     });
   }
 }

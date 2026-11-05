@@ -415,4 +415,7 @@ const Map<String, List<String>> strings = {
   'Documents': ['Documents', 'Documentos', 'Documentos', 'Dokumente'],
   'Phone storage': ['Mémoire du téléphone', 'Almacenamiento del teléfono', 'Armazenamento do telemóvel', 'Telefonspeicher'],
   'This browser (Tools → Created files)': ['Ce navigateur (Outils → Fichiers créés)', 'Este navegador (Herramientas → Archivos creados)', 'Este navegador (Ferramentas → Ficheiros criados)', 'Dieser Browser (Werkzeuge → Erstellte Dateien)'],
+  'Rename': ['Renommer', 'Cambiar nombre', 'Mudar o nome', 'Umbenennen'],
+  'OK': ['OK', 'Aceptar', 'OK', 'OK'],
+  'Your original file is untouched.': ['Votre fichier d’origine n’est pas modifié.', 'Su archivo original no se modifica.', 'O seu ficheiro original não é alterado.', 'Ihre Originaldatei bleibt unverändert.'],
 };

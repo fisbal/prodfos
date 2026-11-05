@@ -11,6 +11,7 @@ import '../../core/services/image_enhancer.dart';
 import '../../core/services/scan_layout.dart';
 import 'scan_types.dart';
 import '../../core/l10n/l10n.dart';
+import '../../core/widgets/save_name_dialog.dart';
 
 class ScanToPdfScreen extends StatefulWidget {
   const ScanToPdfScreen({super.key});
@@ -550,65 +551,6 @@ class _ScanPage {
   _ScanPage({required this.path, required this.name});
 }
 
-/// Before saving: the file's name (editable) and where it goes.
+/// Before saving a scan: the file's name (editable) and where it goes.
 Future<({String name, bool elsewhere})?> askScanNameAndPlace(BuildContext context, String folder) =>
-    showDialog<({String name, bool elsewhere})>(context: context, builder: (_) => _ScanSaveDialog(folder: folder));
-
-class _ScanSaveDialog extends StatefulWidget {
-  const _ScanSaveDialog({required this.folder});
-  final String folder;
-  @override
-  State<_ScanSaveDialog> createState() => _ScanSaveDialogState();
-}
-
-class _ScanSaveDialogState extends State<_ScanSaveDialog> {
-  final _name = TextEditingController(text: PdfService.defaultScanName());
-  bool _elsewhere = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _name.selection = TextSelection(baseOffset: 0, extentOffset: _name.text.length);
-  }
-
-  @override
-  void dispose() { _name.dispose(); super.dispose(); }
-
-  void _save() => Navigator.pop(context, (name: _name.text, elsewhere: _elsewhere));
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    // Phones held sideways are only about 390 px high: the whole dialog scrolls, never the choices alone.
-    scrollable: true,
-    title: Text(tr('Save the scan')),
-    content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      TextField(
-        key: const Key('scan-name'), controller: _name, autofocus: true,
-        decoration: InputDecoration(labelText: tr('File name'), suffixText: '.pdf', prefixIcon: const Icon(Icons.picture_as_pdf_rounded)),
-        onSubmitted: (_) => _save(),
-      ),
-      const SizedBox(height: 16),
-      Text(tr('Where'), style: const TextStyle(fontWeight: FontWeight.w600)),
-      RadioGroup<bool>(
-        groupValue: _elsewhere,
-        onChanged: (v) => setState(() => _elsewhere = v ?? false),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          RadioListTile<bool>(
-            key: const Key('scan-place-prodfos'), value: false, contentPadding: EdgeInsets.zero,
-            title: Text(tr('ProDFOS folder')), subtitle: Text(widget.folder),
-          ),
-          if (AppFiles.canChoosePlace)
-            RadioListTile<bool>(
-              key: const Key('scan-place-other'), value: true, contentPadding: EdgeInsets.zero,
-              title: Text(AppFiles.isWeb ? tr('Also download a copy') : tr('Also save a copy elsewhere…')),
-              subtitle: Text(AppFiles.isWeb ? tr('Your browser saves it in Downloads') : tr('Any folder, SD card or Drive')),
-            ),
-        ]),
-      ),
-    ]),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel'))),
-      FilledButton.icon(key: const Key('scan-save'), onPressed: _save, icon: const Icon(Icons.save_rounded, size: 18), label: Text(tr('Save'))),
-    ],
-  );
-}
+    askSaveNameAndPlace(context, folder: folder, proposed: PdfService.defaultScanName(), title: tr('Save the scan'));

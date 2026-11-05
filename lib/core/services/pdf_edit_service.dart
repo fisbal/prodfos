@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../platform/app_files.dart';
+import 'pdf_service.dart';
 
 // ══════════════════════════════════════════════════════════════════
 // MODELS — every coordinate is in PDF page points (top-left origin)
@@ -257,12 +258,16 @@ class PdfEditService {
   }
 
   /// Saves an edited copy next to the other ProDFOS outputs. Returns the path.
-  static Future<String> saveEdited(Uint8List bytes, String originalName) async {
+  /// Saves the edited copy in the ProDFOS folder. [name] is the name the person chose (never overwrites:
+  /// "name (2).pdf"); without one, the old automatic "name_edited_123.pdf".
+  static Future<String> saveEdited(Uint8List bytes, String originalName, {String? name}) async {
     final dir = await AppFiles.outputDir();
     final base = originalName.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '')
         .replaceAll(RegExp(r'[^\w\-]'), '_');
     final stamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
-    final path = AppFiles.join(dir, '${base}_edited_$stamp.pdf');
+    final path = name != null
+        ? AppFiles.join(dir, await PdfService.freeName(dir, PdfService.cleanPdfName(name)))
+        : AppFiles.join(dir, '${base}_edited_$stamp.pdf');
     await AppFiles.writeBytes(path, bytes);
     return path;
   }
