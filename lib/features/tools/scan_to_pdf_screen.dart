@@ -11,6 +11,7 @@ import '../../core/services/image_enhancer.dart';
 import '../../core/services/scan_layout.dart';
 import 'scan_types.dart';
 import '../../core/l10n/l10n.dart';
+import '../../core/widgets/save_name_dialog.dart';
 
 class ScanToPdfScreen extends StatefulWidget {
   const ScanToPdfScreen({super.key});
@@ -120,8 +121,16 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
   }
 
   // ── Build PDF ────────────────────────────────────────────
+  Future<({String name, bool elsewhere})?> _askNameAndPlace() async {
+    final folder = AppFiles.placeOf(AppFiles.join(await AppFiles.outputDir(), 'x.pdf'));
+    if (!mounted) return null;
+    return askScanNameAndPlace(context, folder);
+  }
+
   Future<void> _createPdf() async {
     if (_pages.isEmpty) return;
+    final choice = await _askNameAndPlace();
+    if (choice == null || !mounted) return;
     setState(() { _isProcessing = true; _status = tr('Preparing...'); });
 
     try {
@@ -158,11 +167,16 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
       setState(() => _status = tr('Building PDF...'));
       final pdfService = context.read<PdfService>();
       final result = await pdfService.imagesToPdf(paths,
-          paper: _type.isCard ? 'a4' : _type.layout == 'receipt' ? 'image' : 'letter');
+          paper: _type.isCard ? 'a4' : _type.layout == 'receipt' ? 'image' : 'letter', name: choice.name);
+      String? copy;
+      if (choice.elsewhere) {
+        setState(() => _status = tr('Saving a copy...'));
+        try { copy = await AppFiles.saveCopyAs(result.outputPath, result.fileName); } catch (_) { copy = null; }
+      }
 
       if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
-      _showSuccessDialog(result);
+      _showSuccessDialog(result, copy: copy, askedCopy: choice.elsewhere);
     } catch (e) {
       if (!mounted) return;
       setState(() { _isProcessing = false; _status = ''; });
@@ -172,10 +186,11 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
     }
   }
 
-  void _showSuccessDialog(PdfResult result) {
+  void _showSuccessDialog(PdfResult result, {String? copy, bool askedCopy = false}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 8),
@@ -186,11 +201,24 @@ class _ScanToPdfScreenState extends State<ScanToPdfScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(tr('{n} page(s) scanned', {'n': _pages.length})),
-            Text(tr('File: {name}', {'name': result.fileName})),
+            Text(tr('File: {name}', {'name': result.fileName}), key: const Key('scan-done-name'), style: const TextStyle(fontWeight: FontWeight.w600)),
             Text(tr('Size: {size}', {'size': result.fileSizeFormatted})),
-            const SizedBox(height: 8),
-            Text(AppFiles.isWeb ? tr('Kept in this browser (Tools → Created files)') : tr('Saved to: ProDFOS folder'),
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+            const SizedBox(height: 10),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.folder_rounded, size: 18),
+              const SizedBox(width: 6),
+              Expanded(child: Text(tr('Saved in: {place}', {'place': AppFiles.placeOf(result.outputPath)}), key: const Key('scan-done-place'))),
+            ]),
+            if (!AppFiles.isWeb)
+              Padding(padding: const EdgeInsets.only(left: 24, top: 2),
+                child: SelectableText(result.outputPath, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))),
+            if (askedCopy) ...[
+              const SizedBox(height: 6),
+              Text(copy != null ? tr('A copy was also saved where you chose.') : tr('No copy elsewhere: the choice was cancelled.'),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
+            ],
+            const SizedBox(height: 6),
+            Text(tr('Also in ProDFOS: Tools → Created files.'), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
           ],
         ),
         actions: [
@@ -522,3 +550,7 @@ class _ScanPage {
   final String name;
   _ScanPage({required this.path, required this.name});
 }
+
+/// Before saving a scan: the file's name (editable) and where it goes.
+Future<({String name, bool elsewhere})?> askScanNameAndPlace(BuildContext context, String folder) =>
+    askSaveNameAndPlace(context, folder: folder, proposed: PdfService.defaultScanName(), title: tr('Save the scan'));

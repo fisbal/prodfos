@@ -10,6 +10,7 @@ import '../../core/services/pdf_edit_service.dart';
 import 'page_canvas_screen.dart';
 import 'page_organizer_screen.dart';
 import '../../core/l10n/l10n.dart';
+import '../../core/widgets/save_name_dialog.dart';
 
 class EditorScreen extends StatefulWidget {
   final String filePath;
@@ -34,6 +35,26 @@ class _EditorScreenState extends State<EditorScreen> {
   static const _gold = AppTheme.brandGold;
 
   String get _fileName => fileNameOf(widget.filePath);
+  /// The name the person gives the saved copy (tap the title to change it): the file's own name at first.
+  late String _saveName = _fileName.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
+
+  Future<void> _rename() async {
+    final c = TextEditingController(text: _saveName);
+    c.selection = TextSelection(baseOffset: 0, extentOffset: c.text.length);
+    final v = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      scrollable: true,
+      title: Text(tr('Rename')),
+      content: TextField(key: const Key('rename-field'), controller: c, autofocus: true,
+        decoration: InputDecoration(labelText: tr('File name'), suffixText: '.pdf'),
+        onSubmitted: (t) => Navigator.pop(ctx, t)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+        FilledButton(key: const Key('rename-ok'), onPressed: () => Navigator.pop(ctx, c.text), child: Text(tr('OK'))),
+      ],
+    ));
+    Future.delayed(const Duration(seconds: 1), c.dispose);
+    if (v != null && v.trim().isNotEmpty && mounted) setState(() { _saveName = v.trim(); _dirty = true; });
+  }
 
   @override
   void initState() {
@@ -144,12 +165,21 @@ class _EditorScreenState extends State<EditorScreen> {
     setState(() => _busy = true);
     try {
       final out = await _snapshot();
-      final path = await PdfEditService.saveEdited(out, _fileName);
-      final name = path.split('/').last;
+      if (!mounted) return;
+      final folder = AppFiles.placeOf(AppFiles.join(await AppFiles.outputDir(), 'x.pdf'));
+      if (!mounted) return;
+      final choice = await askSaveNameAndPlace(context, folder: folder, proposed: _saveName, title: tr('Save'));
+      if (choice == null) return;
+      final path = await PdfEditService.saveEdited(out, _fileName, name: choice.name);
+      final name = fileNameOf(path);
+      String? copy;
+      if (choice.elsewhere) {
+        try { copy = await AppFiles.saveCopyAs(path, name); } catch (_) { copy = null; }
+      }
       if (!mounted) return;
       context.read<DocumentManager>().addToRecent(path, name);
-      setState(() => _dirty = false);
-      _showSaved(path, name);
+      setState(() { _dirty = false; _saveName = name.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), ''); });
+      _showSaved(path, name, copy: copy, askedCopy: choice.elsewhere);
     } catch (e) {
       _snack(tr('Save failed: {e}', {'e': e}));
     } finally {
@@ -157,22 +187,34 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  void _showSaved(String path, String name) {
+  void _showSaved(String path, String name, {String? copy, bool askedCopy = false}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 8),
           Text(tr('Saved')),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name),
+          Text(name, key: const Key('saved-name'), style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(AppFiles.isWeb
-              ? tr('Kept in this browser (Tools → Created files). Use Download to save it.\nYour original file is untouched.')
-              : tr('Saved to the ProDFOS folder.\nYour original file is untouched.'),
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.folder_rounded, size: 18),
+            const SizedBox(width: 6),
+            Expanded(child: Text(tr('Saved in: {place}', {'place': AppFiles.placeOf(path)}))),
+          ]),
+          if (!AppFiles.isWeb)
+            Padding(padding: const EdgeInsets.only(left: 24, top: 2),
+              child: SelectableText(path, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))),
+          if (askedCopy) ...[
+            const SizedBox(height: 6),
+            Text(copy != null ? tr('A copy was also saved where you chose.') : tr('No copy elsewhere: the choice was cancelled.'),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
+          ],
+          const SizedBox(height: 6),
+          Text(tr('Your original file is untouched.'), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Keep editing'))),
@@ -236,12 +278,17 @@ class _EditorScreenState extends State<EditorScreen> {
             },
           ),
           titleSpacing: 0,
-          title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_fileName, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          // Tap the title to rename the saved copy (Martin 2026-11-05: "je ne peux pas modifier le titre").
+          title: InkWell(key: const Key('editor-title'), onTap: _busy ? null : _rename, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(child: Text(_saveName, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+              const SizedBox(width: 4),
+              Icon(Icons.edit_rounded, size: 14, color: _gold.withValues(alpha: 0.8), semanticLabel: tr('Rename')),
+            ]),
             Text(_pageCount > 0 ? tr('Editing · page {page} of {count}', {'page': _page, 'count': _pageCount}) : tr('Editing'),
               style: TextStyle(fontSize: 11, color: _gold.withValues(alpha: 0.8))),
-          ]),
+          ])),
           actions: [
             IconButton(
               icon: const Icon(Icons.undo_rounded),
