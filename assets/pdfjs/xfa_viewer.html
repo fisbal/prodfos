@@ -213,7 +213,12 @@
   $('save').onclick = function () {
     if (!pdfDoc) return;
     $('save').querySelector('span').textContent = 'Saving…';
-    pdfDoc.saveDocument().then(function (data) {
+    // Nothing edited yet → save an exact copy. pdf.js's saveDocument() crashes on
+    // XFA forms when no field has changed ("Cannot read properties of null
+    // (reading 'get')", CF 742) — and there is nothing to rebuild anyway.
+    var storage = pdfDoc.annotationStorage;
+    var changed = storage && typeof storage.size === 'number' ? storage.size > 0 : dirty;
+    (changed ? pdfDoc.saveDocument() : pdfDoc.getData()).then(function (data) {
       if (EMBED) {
         parent.postMessage({ source: 'prodfos-forms', type: 'saved', name: NAME, data: data }, '*');
         done(); return;
