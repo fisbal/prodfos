@@ -45,8 +45,7 @@ class XfaDetector {
         end--;
       }
       try {
-        final data = ZLibDecoder().decodeBytes(bytes.sublist(start, end));
-        final u = data is Uint8List ? data : Uint8List.fromList(data);
+        final u = const ZLibDecoder().decodeBytes(bytes.sublist(start, end));
         if (_has(u, '/XFA') || _has(u, '/NeedsRendering')) return true;
       } catch (_) {
         // Not Flate-compressed or damaged — skip this stream.
