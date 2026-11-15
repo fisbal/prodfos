@@ -30,6 +30,12 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// AGP 9's release "lintVital" check crashes inside third-party plugins
+// (e.g. image_picker_android: "this is a bug in lint"). It only lints, so skip it.
+allprojects {
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
