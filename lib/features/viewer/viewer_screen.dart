@@ -13,6 +13,7 @@ import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
 import '../docmind/docmind_sheet.dart';
 import '../forms/xfa_view.dart';
+import '../../core/services/xfa_detector.dart';
 import '../../core/l10n/l10n.dart';
 
 /// PDF viewer with two engines:
@@ -57,7 +58,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Future<void> _load() async {
     try {
       final bytes = widget.bytes ?? await AppFiles.readBytes(widget.filePath);
-      final xfa = _containsAscii(bytes, '/XFA') || _looksLikeXfaPlaceholder(bytes);
+      final xfa = XfaDetector.isXfa(bytes) || _looksLikeXfaPlaceholder(bytes);
       if (!mounted) return;
       setState(() {
         _bytes = bytes;
@@ -71,29 +72,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
   }
 
-  /// Fast byte search — no string conversion of the whole file.
-  static bool _containsAscii(Uint8List bytes, String needle) {
-    final n = needle.codeUnits;
-    final last = bytes.length - n.length;
-    outer:
-    for (int i = 0; i <= last; i++) {
-      if (bytes[i] != n[0]) continue;
-      for (int j = 1; j < n.length; j++) {
-        if (bytes[i + j] != n[j]) continue outer;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  /// XFA hidden inside compressed object streams: page 1 only says "Please wait".
+  /// Last resort: page 1 shows Adobe's placeholder ("Please wait…",
+  /// "requires Adobe Reader 8"). The PDF text is English in every language
+  /// ProDFOS is shown in, so it must NOT be translated here.
   static bool _looksLikeXfaPlaceholder(Uint8List bytes) {
     try {
       final doc = sync_pdf.PdfDocument(inputBytes: bytes);
       try {
         if (doc.pages.count == 0) return false;
         final text = sync_pdf.PdfTextExtractor(doc).extractText(startPageIndex: 0, endPageIndex: 0);
-        return text.contains(tr('Please wait')) && text.contains('Adobe');
+        return XfaDetector.isPlaceholderText(text);
       } finally {
         doc.dispose();
       }
