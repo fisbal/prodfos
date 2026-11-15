@@ -12,6 +12,20 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+// Older plugins (e.g. syncfusion_flutter_pdfviewer 27) pin compileSdk 31, which
+// AGP 9 now rejects for their dependencies. Raise any plugin below 36 to 36.
+// Registered before evaluationDependsOn(":app") so afterEvaluate is still allowed.
+subprojects {
+    if (name != "app") {
+        afterEvaluate {
+            val android = extensions.findByName("android")
+            if (android is com.android.build.gradle.BaseExtension) {
+                val current = android.compileSdkVersion?.removePrefix("android-")?.toIntOrNull() ?: 0
+                if (current < 36) android.compileSdkVersion(36)
+            }
+        }
+    }
+}
 subprojects {
     project.evaluationDependsOn(":app")
 }
