@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:web/web.dart' as web;
 import 'stored_file.dart';
+import '../services/print/print_bridge_web.dart' as oi1;
 import '../l10n/l10n.dart';
 
 /// Web implementation — files live inside the browser.
@@ -137,6 +138,8 @@ class AppFiles {
     final mime = lower.endsWith('.pdf')
         ? 'application/pdf'
         : lower.endsWith('.txt') ? 'text/plain' : 'application/octet-stream';
+    // Inside Office In 1, Office In 1 saves it (its Android apps cannot save a download made in this frame).
+    if (oi1.sendFileToSave(name, mime, bytes)) return;
     final blob = web.Blob([bytes.toJS].toJS, web.BlobPropertyBag(type: mime));
     final url = web.URL.createObjectURL(blob);
     final a = web.document.createElement('a') as web.HTMLAnchorElement
