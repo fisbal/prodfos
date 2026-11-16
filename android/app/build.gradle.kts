@@ -64,6 +64,9 @@ android {
             // fall back to the debug key so builds never fail.
             signingConfig = if (hasReleaseKey) signingConfigs.getByName("release")
                             else signingConfigs.getByName("debug")
+            // Keep what Google ML Kit (the document scanner) creates by name.
+            // Without these rules R8 removes it and the scanner crashes.
+            proguardFiles("proguard-rules.pro")
         }
     }
 }
