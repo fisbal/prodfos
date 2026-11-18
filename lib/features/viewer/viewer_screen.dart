@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -13,6 +14,7 @@ import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
 import '../docmind/docmind_sheet.dart';
 import '../forms/xfa_view.dart';
+import 'print_panel.dart';
 import '../../core/platform/pdfjs_copy.dart';
 import '../../core/services/xfa_detector.dart';
 import '../../core/l10n/l10n.dart';
@@ -128,6 +130,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
           pngs.add(await r.toPng());
         }
         sendPagesToPrint(_fileName, pngs);
+        return;
+      }
+      // Windows' own box only offers paper and orientation: ProDFOS's panel adds
+      // pages, copies, manual two-sided and order (Martin, 2026-11-17).
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        var pages = _totalPages;
+        if (pages <= 0) {
+          final doc = sync_pdf.PdfDocument(inputBytes: bytes);
+          pages = doc.pages.count;
+          doc.dispose();
+        }
+        if (!mounted) return;
+        await showPrintPanel(context, bytes: bytes, name: _fileName, pageCount: pages,
+            currentPage: _formsEngine ? 1 : _currentPage);
         return;
       }
       await Printing.layoutPdf(onLayout: (_) async => pdfJsCopy(bytes), name: _fileName);
