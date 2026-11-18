@@ -45,6 +45,8 @@ const Map<String, List<String>> strings = {
   'Clear': ['Effacer', 'Borrar', 'Limpar', 'Löschen'],
   'Clear All': ['Tout effacer', 'Borrar todo', 'Limpar tudo', 'Alles löschen'],
   'Clear History?': ['Effacer l’historique ?', '¿Borrar el historial?', 'Limpar o histórico?', 'Verlauf löschen?'],
+  'Open PDFs with ProDFOS': ['Ouvrir les PDF avec ProDFOS', 'Abrir los PDF con ProDFOS', 'Abrir PDFs com o ProDFOS', 'PDFs mit ProDFOS öffnen'],
+  'Double-clicked PDFs open here, with all the tools': ['Un PDF ouvert par double-clic s’ouvre ici, avec tous les outils', 'Los PDF abiertos con doble clic se abren aquí, con todas las herramientas', 'PDFs abertos com clique duplo abrem aqui, com todas as ferramentas', 'Per Doppelklick geöffnete PDFs öffnen sich hier, mit allen Werkzeugen'],
   'Clear Recent Documents': ['Effacer les documents récents', 'Borrar documentos recientes', 'Limpar documentos recentes', 'Zuletzt verwendete löschen'],
   'Close': ['Fermer', 'Cerrar', 'Fechar', 'Schließen'],
   'Combine PDFs into one': ['Réunir des PDF en un seul', 'Unir varios PDF en uno', 'Juntar PDFs num só', 'PDFs zu einem zusammenfügen'],

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../core/platform/pdfjs_copy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -22,6 +23,9 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> {
   Uint8List? _bytes;
+  // pdf.js's own copy for the viewer (web), remade when the document changes.
+  Uint8List? _viewCopy;
+  int _viewCopyVersion = -1;
   int _version = 0;
   final List<Uint8List> _undo = [];
   PdfViewerController _controller = PdfViewerController();
@@ -324,8 +328,12 @@ class _EditorScreenState extends State<EditorScreen> {
     if (_bytes == null) {
       return const Center(child: CircularProgressIndicator(color: _gold));
     }
+    if (_viewCopyVersion != _version || _viewCopy == null) {
+      _viewCopy = pdfJsCopy(_bytes!);
+      _viewCopyVersion = _version;
+    }
     return SfPdfViewer.memory(
-      _bytes!,
+      _viewCopy!,
       key: ValueKey(_version),
       controller: _controller,
       pageSpacing: 4,

@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'core/platform/app_files.dart';
 import 'core/platform/open_with.dart';
+import 'core/platform/pdf_association.dart';
 import 'core/services/document_manager.dart';
 import 'core/services/preferences_service.dart';
 import 'core/services/pdf_service.dart';
@@ -39,6 +40,9 @@ void main(List<String> args) async {
 
   final prefs = PreferencesService();
   await prefs.init();
+
+  // Windows: double-clicked PDFs must open this installed, self-updating copy.
+  repairPdfAssociation();
 
   runApp(
     MultiProvider(

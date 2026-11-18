@@ -13,6 +13,7 @@ import '../../core/services/document_manager.dart';
 import '../../core/services/preferences_service.dart';
 import '../docmind/docmind_sheet.dart';
 import '../forms/xfa_view.dart';
+import '../../core/platform/pdfjs_copy.dart';
 import '../../core/services/xfa_detector.dart';
 import '../../core/l10n/l10n.dart';
 
@@ -36,6 +37,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final PdfViewerController _controller = PdfViewerController();
   final GlobalKey<PopupMenuButtonState<String>> _menuKey = GlobalKey();
   Uint8List? _bytes;
+  /// pdf.js's own copy for the viewer (web), so _bytes stays usable for Print.
+  Uint8List? _viewerBytes;
   int _currentPage = 1;
   int _totalPages = 0;
   bool _nightMode = false;
@@ -62,6 +65,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (!mounted) return;
       setState(() {
         _bytes = bytes;
+        _viewerBytes = pdfJsCopy(bytes);
         _isXfa = xfa;
         _formsEngine = xfa;
         if (xfa) _isLoading = false;
@@ -120,13 +124,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (insideOfficeIn1) {
         // Inside Office In 1 the browser cannot print a PDF from a frame: Office In 1 prints the pages itself.
         final pngs = <Uint8List>[];
-        await for (final r in Printing.raster(bytes, dpi: 150)) {
+        await for (final r in Printing.raster(pdfJsCopy(bytes), dpi: 150)) {
           pngs.add(await r.toPng());
         }
         sendPagesToPrint(_fileName, pngs);
         return;
       }
-      await Printing.layoutPdf(onLayout: (_) async => bytes, name: _fileName);
+      await Printing.layoutPdf(onLayout: (_) async => pdfJsCopy(bytes), name: _fileName);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Printing failed: {e}', {'e': e}))));
     }
@@ -200,7 +204,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         colorFilter: _nightMode
             ? const ColorFilter.matrix([-1,0,0,0,255, 0,-1,0,0,255, 0,0,-1,0,255, 0,0,0,1,0])
             : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
-        child: SfPdfViewer.memory(bytes,
+        child: SfPdfViewer.memory(_viewerBytes ?? pdfJsCopy(bytes),
           key: _viewerKey, controller: _controller,
           canShowScrollHead: prefs.showScrollHead,
           enableTextSelection: true, pageSpacing: prefs.pageSpacing,
