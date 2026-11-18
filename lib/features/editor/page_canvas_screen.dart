@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../core/platform/pdfjs_copy.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
@@ -68,7 +69,7 @@ class _PageCanvasScreenState extends State<PageCanvasScreen> {
         return;
       }
       Uint8List? png;
-      await for (final r in Printing.raster(widget.bytes, pages: [widget.pageIndex], dpi: 110)) {
+      await for (final r in Printing.raster(pdfJsCopy(widget.bytes), pages: [widget.pageIndex], dpi: 110)) {
         png = await r.toPng();
       }
       setState(() { _png = png; _pageSize = info.size; _loading = false; });

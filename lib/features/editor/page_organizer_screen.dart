@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../core/platform/pdfjs_copy.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
@@ -37,7 +38,7 @@ class _PageOrganizerScreenState extends State<PageOrganizerScreen> {
     final docIndex = _sources.length;
     _sources.add(bytes);
     final thumbs = <Uint8List>[];
-    await for (final r in Printing.raster(bytes, dpi: 28)) {
+    await for (final r in Printing.raster(pdfJsCopy(bytes), dpi: 28)) {
       thumbs.add(await r.toPng());
     }
     _thumbs.add(thumbs);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/platform/pdf_association.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -196,6 +197,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: tr('Remove all reading history'),
               onTap: () => _confirmClear(context),
             ),
+            if (canChoosePdfApp)
+              _SettingsTile(
+                icon: Icons.picture_as_pdf_rounded,
+                title: tr('Open PDFs with ProDFOS'),
+                subtitle: tr('Double-clicked PDFs open here, with all the tools'),
+                onTap: openDefaultAppsSettings,
+              ),
           ]),
 
           // ── ABOUT ────────────────────────────────────────
