@@ -11,9 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  syncfusion_flutter_pdfviewer: ^27.1.48
-  syncfusion_flutter_pdf: ^27.1.48
-  syncfusion_flutter_signaturepad: ^27.1.48
+  syncfusion_flutter_pdfviewer: '>=34.2.2 <36.0.0'
+  syncfusion_flutter_pdf: '>=34.2.2 <36.0.0'
+  syncfusion_flutter_signaturepad: '>=34.2.2 <36.0.0'
   printing: ^5.13.3
   file_picker: ^8.1.2
   path_provider: ^2.1.4

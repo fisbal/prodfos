@@ -1,15 +1,18 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 import 'package:printing/printing.dart';
 import '../../core/l10n/l10n.dart';
 import '../../core/services/pdf_edit_service.dart';
 import '../../core/services/print/print_plan.dart';
+import '../../core/services/print/windows_print.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/scene3d.dart';
 
 /// ProDFOS print panel (Windows): printer, pages, copies, manual two-sided,
-/// order. Windows' own print box only offers paper and orientation.
-/// Pages print at 100 % (actual size).
+/// order, and the printer's own preferences (paper, quality, two-sided).
+/// Everything chosen here is kept for next time (Martin, 2026-11-20).
 Future<void> showPrintPanel(
   BuildContext context, {
   required Uint8List bytes,
@@ -35,16 +38,19 @@ class _PrintPanel extends StatefulWidget {
 }
 
 class _PrintPanelState extends State<_PrintPanel> {
+  static Box get _box => Hive.box('settings');
+
   List<Printer> _printers = const [];
   Printer? _printer;
   bool _loadingPrinters = true;
   PrintPages _pages = PrintPages.all;
   final _range = TextEditingController();
-  int _copies = 1;
-  bool _manualDuplex = false;
-  bool _reverse = false;
-  bool _reverseBacks = true;
+  int _copies = _box.get('print.copies', defaultValue: 1) as int;
+  bool _manualDuplex = _box.get('print.manualDuplex', defaultValue: false) as bool;
+  bool _reverse = _box.get('print.reverse', defaultValue: false) as bool;
+  bool _reverseBacks = _box.get('print.reverseBacks', defaultValue: true) as bool;
   bool _busy = false;
+  String? _progress;
   String? _error;
 
   @override
@@ -63,15 +69,28 @@ class _PrintPanelState extends State<_PrintPanel> {
     try {
       final list = await Printing.listPrinters();
       final usable = list.where((p) => p.isAvailable).toList();
+      final saved = _box.get('print.printer') as String?;
       if (!mounted) return;
       setState(() {
         _printers = usable;
-        _printer = usable.where((p) => p.isDefault).firstOrNull ?? usable.firstOrNull;
+        _printer = usable.where((p) => p.name == saved).firstOrNull ??
+            usable.where((p) => p.isDefault).firstOrNull ??
+            usable.firstOrNull;
         _loadingPrinters = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingPrinters = false);
     }
+  }
+
+  void _remember() {
+    _box.putAll({
+      if (_printer != null) 'print.printer': _printer!.name,
+      'print.copies': _copies,
+      'print.manualDuplex': _manualDuplex,
+      'print.reverse': _reverse,
+      'print.reverseBacks': _reverseBacks,
+    });
   }
 
   PrintPlan get _plan => PrintPlan(
@@ -95,11 +114,28 @@ class _PrintPanelState extends State<_PrintPanel> {
   Future<Uint8List> _build(List<PageEntry> entries) =>
       PdfEditService.rebuildPages([Uint8List.fromList(widget.bytes)], entries);
 
+  Future<void> _send(Printer printer, Uint8List pdf, int total) async {
+    try {
+      await WindowsPrint.printPdf(
+        printer: printer.name,
+        name: widget.name,
+        pdf: pdf,
+        onPage: (n) {
+          if (mounted) setState(() => _progress = tr('Page {n} of {total}', {'n': n, 'total': total}));
+        },
+      );
+    } on MissingPluginException {
+      // Older Windows runner: the printing package prints instead.
+      await Printing.directPrintPdf(printer: printer, onLayout: (_) async => pdf, name: widget.name);
+    }
+  }
+
   Future<void> _print() async {
     final printer = _printer;
     final jobs = _jobs();
     if (printer == null || jobs == null) return;
-    setState(() { _busy = true; _error = null; });
+    _remember();
+    setState(() { _busy = true; _error = null; _progress = null; });
     try {
       for (var i = 0; i < jobs.length; i++) {
         if (i == 1) {
@@ -107,26 +143,30 @@ class _PrintPanelState extends State<_PrintPanel> {
           if (go != true) break;
         }
         final pdf = await _build(jobs[i]);
-        await Printing.directPrintPdf(printer: printer, onLayout: (_) async => pdf, name: widget.name);
+        await _send(printer, pdf, jobs[i].length);
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = tr('Printing failed: {e}', {'e': e}); });
+      if (mounted) setState(() { _busy = false; _progress = null; _error = tr('Printing failed: {e}', {'e': e}); });
     }
   }
 
-  /// Windows' own print box (printer preferences, paper), with the chosen pages and copies.
-  Future<void> _windowsDialog() async {
-    final jobs = planPrintJobs(
-        PrintPlan(pages: _pages, range: _range.text, copies: _copies, reverse: _reverse),
-        pageCount: widget.pageCount, currentPage: widget.currentPage);
-    setState(() { _busy = true; _error = null; });
+  /// The printer's own window: paper, quality, two-sided… kept for this printer.
+  Future<void> _preferences() async {
+    final printer = _printer;
+    if (printer == null) return;
     try {
+      final saved = await WindowsPrint.editSettings(printer.name);
+      if (saved && mounted) setState(() {});
+    } on MissingPluginException {
+      // Older Windows runner: Windows' own box.
+      final jobs = _jobs();
+      if (jobs == null) return;
       final pdf = await _build(jobs.first);
       if (mounted) Navigator.of(context).pop();
       await Printing.layoutPdf(onLayout: (_) async => pdf, name: widget.name);
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = tr('Printing failed: {e}', {'e': e}); });
+      if (mounted) setState(() => _error = tr('Printing failed: {e}', {'e': e}));
     }
   }
 
@@ -150,6 +190,8 @@ class _PrintPanelState extends State<_PrintPanel> {
     final rangeError = _pages == PrintPages.range &&
         _range.text.trim().isNotEmpty &&
         parsePageRange(_range.text, widget.pageCount) == null;
+    final printer = _printer;
+    final hasSettings = printer != null && WindowsPrint.savedSettings(printer.name) != null;
     return Dialog(
       backgroundColor: const Color(0xFF101016),
       shape: RoundedRectangleBorder(
@@ -174,18 +216,32 @@ class _PrintPanelState extends State<_PrintPanel> {
               const LinearProgressIndicator(color: AppTheme.brandGold)
             else if (_printers.isEmpty)
               Text(tr('No printer found'), style: AppTheme.body(14, color: AppTheme.creamMuted))
-            else
+            else ...[
               DropdownButtonFormField<String>(
-                initialValue: _printer?.url,
+                initialValue: printer?.url,
                 isExpanded: true,
                 dropdownColor: const Color(0xFF17171E),
                 items: [
                   for (final p in _printers)
                     DropdownMenuItem(value: p.url, child: Text(p.name, overflow: TextOverflow.ellipsis)),
                 ],
-                onChanged: (url) => setState(() => _printer = _printers.firstWhere((p) => p.url == url)),
+                onChanged: _busy ? null : (url) => setState(() => _printer = _printers.firstWhere((p) => p.url == url)),
               ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: Text(
+                  hasSettings
+                      ? tr('Your printer settings are kept for this printer')
+                      : tr('Paper, quality and two-sided: open the printer preferences once, ProDFOS keeps them'),
+                  style: AppTheme.body(12.5, color: hasSettings ? AppTheme.brandGold : AppTheme.creamFaint))),
+                TextButton.icon(
+                  onPressed: _busy || printer == null ? null : _preferences,
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: Text(tr('Printer preferences…')),
+                ),
+              ]),
+            ],
+            const SizedBox(height: 14),
 
             _label(tr('Pages')),
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -245,6 +301,10 @@ class _PrintPanelState extends State<_PrintPanel> {
             ),
             Text(tr('Printed at actual size (100 %).'), style: AppTheme.body(12.5, color: AppTheme.creamFaint)),
 
+            if (_progress != null) ...[
+              const SizedBox(height: 10),
+              Text(_progress!, style: AppTheme.body(13, color: AppTheme.brandGold)),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 10),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
@@ -253,12 +313,10 @@ class _PrintPanelState extends State<_PrintPanel> {
             Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, runSpacing: 10,
                 children: [
               TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(), child: Text(tr('Cancel'))),
-              TextButton(onPressed: _busy || rangeError ? null : _windowsDialog,
-                  child: Text(tr('Printer settings…'))),
               Button3D(
                 label: _busy ? tr('Printing…') : tr('Print'),
                 icon: Icons.print_rounded,
-                onTap: _busy || _printer == null || rangeError ? null : _print,
+                onTap: _busy || printer == null || rangeError ? null : _print,
               ),
             ]),
           ]),
