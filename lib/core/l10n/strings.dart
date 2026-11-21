@@ -1,6 +1,10 @@
 // ProDFOS texts in French, Spanish, Portuguese and German, keyed by the English text in the code (see l10n.dart).
 // Add a line here for every new tr('…') text; a missing line shows the English.
 const Map<String, List<String>> strings = {
+  'Page {n} of {total}': ['Page {n} sur {total}', 'Página {n} de {total}', 'Página {n} de {total}', 'Seite {n} von {total}'],
+  'Your printer settings are kept for this printer': ['Vos réglages sont gardés pour cette imprimante', 'Sus ajustes se guardan para esta impresora', 'Suas configurações ficam guardadas para esta impressora', 'Ihre Einstellungen werden für diesen Drucker gespeichert'],
+  'Paper, quality and two-sided: open the printer preferences once, ProDFOS keeps them': ['Papier, qualité et recto verso : ouvrez une fois les préférences de l\'imprimante, ProDFOS les garde', 'Papel, calidad y doble cara: abra una vez las preferencias de la impresora, ProDFOS las guarda', 'Papel, qualidade e frente e verso: abra uma vez as preferências da impressora, o ProDFOS as guarda', 'Papier, Qualität und beidseitig: Druckereinstellungen einmal öffnen, ProDFOS merkt sie sich'],
+  'Printer preferences…': ['Préférences de l\'imprimante…', 'Preferencias de la impresora…', 'Preferências da impressora…', 'Druckereinstellungen…'],
   'Print': ['Imprimer', 'Imprimir', 'Imprimir', 'Drucken'],
   'Printer': ['Imprimante', 'Impresora', 'Impressora', 'Drucker'],
   'No printer found': ['Aucune imprimante trouvée', 'No se encontró ninguna impresora', 'Nenhuma impressora encontrada', 'Kein Drucker gefunden'],
